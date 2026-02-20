@@ -2,6 +2,7 @@ import sys
 import os
 import json
 from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 # Dynamically find the project root and point to the bin directory
 # This resolves correctly no matter how deep the tests/ folder is nested
