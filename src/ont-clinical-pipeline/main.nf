@@ -4,6 +4,11 @@ nextflow.enable.dsl=2
 params.sample = "SRR11032656" // Default fallback
 
 process FETCH_DB_INPUTS {
+    secret 'DB_HOST'
+    secret 'DB_USER'
+    secret 'DB_PASSWORD'
+    secret 'DB_NAME'
+    
     input:
     val sample_id
 
