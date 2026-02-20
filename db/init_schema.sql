@@ -4,6 +4,7 @@ CREATE TABLE samples (
     assay_type VARCHAR(20) NOT NULL
 );
 
+-- One to many storage layer
 CREATE TABLE file_locations (
     id SERIAL PRIMARY KEY,
     sample_id VARCHAR(50) REFERENCES samples(sample_id),
