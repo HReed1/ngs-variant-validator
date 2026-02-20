@@ -17,6 +17,9 @@ def fetch_sample_files(sample_id, db_host, db_user, db_pass, db_name):
     """
     cursor.execute(query, (sample_id,))
     results = cursor.fetchall()
+
+    # Convert the list of tuples into a dictionary
+    results_dict = {row[0]: row[1] for row in results}
     
     # Format as JSON for Nextflow
     output_data = {
