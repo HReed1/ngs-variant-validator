@@ -3,9 +3,13 @@ import os
 import json
 from unittest.mock import patch, MagicMock
 
-# Dynamically add the bin/ directory to the system path so we can import the script
-# This allows us to test the script without having to package it as a formal Python module
-bin_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/ont-clinical-pipeline/bin'))
+# Dynamically find the project root and point to the bin directory
+# This resolves correctly no matter how deep the tests/ folder is nested
+project_root = Path(__file__).resolve().parent
+while project_root.name != 'ngs-variant-validator' and project_root.parent != project_root:
+    project_root = project_root.parent
+
+bin_path = project_root / 'src' / 'ont-clinical-pipeline' / 'bin'
 sys.path.insert(0, bin_path)
 
 import db_fetch_inputs
