@@ -2,12 +2,12 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Pull credentials from the environment, defaulting to local Docker dev settings
+# Pull credentials from the environment
 DB_HOST = os.environ.get("DB_HOST", None)
 DB_PORT = os.environ.get("DB_PORT", None)
 DB_NAME = os.environ.get("DB_NAME", None)
 
-# Hardcoded fallback to the frontend role to prevent accidental privilege escalation
+# Hardcoded fallback to the highly-privileged ETL role
 DB_USER = os.environ.get("DB_USER", None)
 DB_PASSWORD = os.environ.get("DB_PASSWORD", None)
 
@@ -19,10 +19,10 @@ engine = create_engine(DATABASE_URL)
 # Create a session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def get_db():
+def get_etl_db():
     """
-    FastAPI dependency that yields a database session and ensures 
-    it is closed securely after the API request is completed.
+    Utility function for ETL scripts to safely open and close 
+    transactions. 
     """
     db = SessionLocal()
     try:
