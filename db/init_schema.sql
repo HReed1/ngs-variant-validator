@@ -1,14 +1,8 @@
 CREATE TABLE samples (
     sample_id VARCHAR(50) PRIMARY KEY,
-    
-    -- accommodate application-level encryption
     patient_id VARCHAR(255) NOT NULL, 
-    
     assay_type VARCHAR(50) NOT NULL,
-    
-    -- Schema-less storage for frontend metadata
     metadata JSONB DEFAULT '{}'::jsonb,
-    
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,10 +26,7 @@ CREATE TABLE pipeline_results (
     sample_id VARCHAR(50) REFERENCES samples(sample_id) ON DELETE CASCADE,
     clinical_report_json_uri TEXT,
     pipeline_version VARCHAR(50),
-    
-    -- Secondary JSONB for pipeline-specific outputs (e.g., QC metrics, read depths)
     metrics JSONB DEFAULT '{}'::jsonb, 
-    
     run_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
