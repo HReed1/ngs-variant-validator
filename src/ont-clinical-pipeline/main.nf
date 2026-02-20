@@ -1,7 +1,8 @@
 nextflow.enable.dsl=2
 
-// Phase 1: Database Integration
-// Uses a Python script in the bin/ folder to query the database for file paths
+// Define pipeline parameters
+params.sample = "SRR11032656" // Default fallback
+
 process FETCH_DB_INPUTS {
     input:
     val sample_id
@@ -15,32 +16,41 @@ process FETCH_DB_INPUTS {
     """
 }
 
-// Parse the JSON to get the FASTQ and Reference paths
 process PARSE_INPUTS {
     input:
     path input_json
 
     output:
-    tuple val(sample_id), path(reads), path(reference)
+    tuple env(SAMPLE_ID), env(READS_URI), env(REF_URI)
 
     script:
-    // Pseudo-code for parsing the JSON into Nextflow variables
     """
-    # Extraction logic here
+    #!/usr/bin/env python3
+    import json
+    import os
+
+    with open('${input_json}', 'r') as f:
+        data = json.load(f)
+
+    # Export variables so Nextflow can capture them via the env() output declaration
+    with open('.command.env', 'w') as env_file:
+        env_file.write(f"SAMPLE_ID={data['sample_id']}\\n")
+        env_file.write(f"READS_URI={data['reads']}\\n")
+        env_file.write(f"REF_URI={data['reference']}\\n")
     """
 }
 
-// Phase 2: Alignment (minimap2 for ONT)
 process ALIGN_READS {
     input:
-    tuple val(sample_id), path(reads), path(reference)
+    tuple val(sample_id), val(reads_uri), val(ref_uri)
 
     output:
-    tuple val(sample_id), path("${sample_id}.bam"), path("${sample_id}.bam.bai"), path(reference), emit: aligned_data
+    tuple val(sample_id), path("${sample_id}.bam"), path("${sample_id}.bam.bai"), val(ref_uri), emit: aligned_data
 
     script:
     """
-    minimap2 -ax map-ont ${reference} ${reads} | samtools sort -o ${sample_id}.bam -
+    # Minimap2 natively supports streaming directly from S3 URIs in many configurations
+    minimap2 -ax map-ont ${ref_uri} ${reads_uri} | samtools sort -o ${sample_id}.bam -
     samtools index ${sample_id}.bam
     """
 }
@@ -48,14 +58,13 @@ process ALIGN_READS {
 // Phase 3: Coverage Calculation (mosdepth)
 process CALCULATE_COVERAGE {
     input:
-    tuple val(sample_id), path(bam), path(bai), path(reference)
+    tuple val(sample_id), path(bam), path(bai), val(ref_uri)
 
     output:
     tuple val(sample_id), path("${sample_id}.mosdepth.global.dist.txt"), path("${sample_id}.regions.bed.gz"), emit: coverage_data
 
     script:
     """
-    # Calculate genome-wide stats and 500bp windowed coverage
     mosdepth -n --by 500 ${sample_id} ${bam}
     """
 }
@@ -63,7 +72,7 @@ process CALCULATE_COVERAGE {
 // Phase 4: Variant Calling (Placeholder for Clair3/DeepVariant/GATK)
 process CALL_VARIANTS {
     input:
-    tuple val(sample_id), path(bam), path(bai), path(reference)
+    tuple val(sample_id), path(bam), path(bai), val(ref_uri)
 
     output:
     tuple val(sample_id), path("${sample_id}.vcf.gz"), emit: raw_vcf
@@ -71,6 +80,7 @@ process CALL_VARIANTS {
     script:
     """
     # Execute variant caller here
+    touch ${sample_id}.vcf.gz
     """
 }
 
@@ -99,6 +109,7 @@ process ANNOTATE_VARIANTS {
     script:
     """
     # Run annotation tool against dbSNP/gnomAD
+    touch ${sample_id}.annotated.vcf
     """
 }
 
@@ -129,9 +140,7 @@ process LOG_DB_OUTPUTS {
 
 // Define the Workflow Execution
 workflow {
-    sample_id = "SRR11032656"
-    
-    FETCH_DB_INPUTS(sample_id)
+    FETCH_DB_INPUTS(params.sample)
     PARSE_INPUTS(FETCH_DB_INPUTS.out.input_json)
     
     ALIGN_READS(PARSE_INPUTS.out)
