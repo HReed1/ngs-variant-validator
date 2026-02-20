@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import psycopg2
 import json
@@ -18,7 +19,11 @@ def fetch_sample_files(sample_id, db_host, db_user, db_pass, db_name):
     results = cursor.fetchall()
     
     # Format as JSON for Nextflow
-    output_data = {row[0]: row[1] for row in results}
+    output_data = {
+        "sample_id": sample_id,
+        "reads": results.get("FASTQ_ONT", ""),
+        "reference": results.get("REFERENCE", "")
+    }
     
     with open('inputs.json', 'w') as f:
         json.dump(output_data, f)
