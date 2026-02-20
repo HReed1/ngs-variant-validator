@@ -1,19 +1,17 @@
-import sys
 import os
 import json
-from unittest.mock import patch, MagicMock
+import importlib.util
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
-# Dynamically find the project root and point to the bin directory
-# This resolves correctly no matter how deep the tests/ folder is nested
-project_root = Path(__file__).resolve().parent
-while project_root.name != 'ngs-variant-validator' and project_root.parent != project_root:
-    project_root = project_root.parent
+# 1. Resolve the absolute path to the Nextflow bin script
+test_dir = Path(__file__).resolve().parent
+script_path = test_dir.parent / 'src' / 'ont-clinical-pipeline' / 'bin' / 'db_fetch_inputs.py'
 
-bin_path = project_root / 'src' / 'ont-clinical-pipeline' / 'bin'
-sys.path.insert(0, bin_path)
-
-import db_fetch_inputs
+# 2. Use importlib to securely load the standalone script directly from its file path
+spec = importlib.util.spec_from_file_location("db_fetch_inputs", script_path)
+db_fetch_inputs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(db_fetch_inputs)
 
 def test_fetch_sample_files_success(temp_workspace):
     """
@@ -28,15 +26,15 @@ def test_fetch_sample_files_success(temp_workspace):
         ("REFERENCE", "s3://ngs-variant-validator-work/ref/hg38.fasta")
     ]
     
-    # 2. Patch (Mock) the database connection
-    with patch('db_fetch_inputs.psycopg2.connect') as mock_connect:
+    # 2. Patch (Mock) the database connection inside the loaded module
+    with patch.object(db_fetch_inputs, 'psycopg2') as mock_psycopg2:
         # Configure the mock cursor to return our fake data when fetchall() is called
         mock_cursor = MagicMock()
         mock_cursor.fetchall.return_value = mock_db_results
         
         mock_connection = MagicMock()
         mock_connection.cursor.return_value = mock_cursor
-        mock_connect.return_value = mock_connection
+        mock_psycopg2.connect.return_value = mock_connection
         
         # 3. Act: Run the actual function
         db_fetch_inputs.fetch_sample_files(
