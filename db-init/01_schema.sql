@@ -1,6 +1,6 @@
 CREATE TABLE samples (
     sample_id VARCHAR(50) PRIMARY KEY,
-    patient_id VARCHAR(255) NOT NULL, 
+    patient_id VARCHAR(255) NOT NULL, -- PHI
     assay_type VARCHAR(50) NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
