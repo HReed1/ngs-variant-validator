@@ -16,31 +16,43 @@ This codebase is strictly modular, separating core bioinformatics logic from clo
 
 ```text
 ngs-variant-validator/
-├── .github/workflows/          # CI/CD pipelines for automated linting and pytest execution
+├── api/                        # FastAPI backend for serving pipeline results (with PHI hidden)
+├── db-init/                    # PostgreSQL schema, security roles & views, and triggers
+├── etl/                        # Data loading and seeding scripts for pipeline events
+├── .github/workflows/          # CI/CD pipelines (flake8 linting, pytest with Postgres service)
 ├── infrastructure/aws/iam/     # Cloud security and deployment configurations
 ├── src/ont-clinical-pipeline/  # The core Nextflow DAG and Python I/O middleware
 ├── tests/                      # Automated unit and integration test suite (pytest)
-├── db/                         # PostgreSQL schema definitions and migrations
 ├── docker-compose.yml          # Local database deployment for reproducible development
 └── requirements.txt            # Python dependencies
 ```
 
-## Quick Start
-1. Spin up the local database:
+## 🔒 Security & Database Architecture
 
-```Bash
-docker-compose up -d
+The system uses a PostgreSQL backend with strict role-based access control (RBAC):
+- **ETL Worker Role (`etl_worker`)**: Has full access to the base `samples` table, including Protected Health Information (PHI) like `patient_id`. Used by the Nextflow pipeline to log results.
+- **Frontend API Role (`frontend_api`)**: Can only access the `frontend_samples` View. The view explicitly excludes the `patient_id` column, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of a vulnerability. Database triggers automatically manage timestamps.
+
+## Quick Start
+1. Install dependencies, create a virtual environment, and spin up the local database:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+docker-compose up -d pipeline-db
 ```
+
 2. Run the automated test suite:
 
-```Bash
+```bash
 pytest tests/ -v
 ```
 
-3. Execute a dry-run of the pipeline:
+3. (Optional) Run the API locally:
 
-```Bash
-nextflow run src/ont-clinical-pipeline/main.nf --sample SRR11032656 -profile standard
+```bash
+fastapi dev api/main.py
 ```
 
 
