@@ -4,6 +4,11 @@ nextflow.enable.dsl=2
 params.sample = "SRR11032656" // Default fallback
 
 process FETCH_DB_INPUTS {
+    secret 'DB_HOST'
+    secret 'DB_USER'
+    secret 'DB_PASSWORD'
+    secret 'DB_NAME'
+    
     input:
     val sample_id
 
@@ -129,12 +134,24 @@ process GENERATE_JSON_REPORT {
 
 // Phase 8: Update Database
 process LOG_DB_OUTPUTS {
+    secret 'DB_HOST'
+    secret 'DB_USER'
+    secret 'DB_PASSWORD'
+    secret 'DB_NAME'
+    
     input:
-    tuple val(sample_id), path(json_report)
+    val sample_id
+    path clinical_report_json
+    path multiqc_metrics_json
 
     script:
+    // Extract the s3 path if staging files remotely, or pass the local/URI string directly
     """
-    db_log_outputs.py --sample ${sample_id} --report_path \$(realpath ${json_report})
+    db_log_outputs.py \\
+        --sample ${sample_id} \\
+        --report ${clinical_report_json} \\
+        --version "v1.2.0" \\
+        --metrics ${multiqc_metrics_json}
     """
 }
 
