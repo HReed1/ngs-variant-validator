@@ -17,7 +17,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: local_dev_password
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: pipeline_db
         # Set health checks to wait until postgres has started
         options: >-
@@ -38,7 +38,7 @@ jobs:
       # so we pipe our SQL scripts into the running container directly.
       - name: Initialize Database
         env:
-          PGPASSWORD: local_dev_password
+          PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
           # Wait a few seconds to ensure DB is fully accepting connections
           sleep 3 
@@ -47,10 +47,10 @@ jobs:
           psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
 
       # 4. Set up Python
-      - name: Set up Python 3.9
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           cache: 'pip' # Automatically caches requirements to speed up future runs
 
       # 5. Install Dependencies
@@ -68,9 +68,9 @@ jobs:
           DB_PORT: 5432
           DB_NAME: pipeline_db
           DB_USER: etl_worker
-          DB_PASSWORD: strong_etl_password
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           # Inject a dummy encryption key for the security/ETL tests
-          ENCRYPTION_KEY: "dummy_base64_encryption_key_for_testing=" 
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
           pytest tests/ \
             --cov=api \
