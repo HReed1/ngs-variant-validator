@@ -12,6 +12,22 @@ jobs:
     # 2. The Environment: What machine are we running on?
     runs-on: ubuntu-latest
 
+    # Add a PostgreSQL service container
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: strong_etl_password
+          POSTGRES_DB: pipeline_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     # 3. The Steps: What exactly are we doing?
     steps:
     - name: Checkout Repository
@@ -33,6 +49,14 @@ jobs:
         flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
         # Treat other formatting issues as warnings
         flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Set up Database Schema and Roles
+      env:
+        PGPASSWORD: strong_etl_password
+      run: |
+        psql -h localhost -U postgres -d pipeline_db -f db-init/01_schema.sql
+        psql -h localhost -U postgres -d pipeline_db -f db-init/02_security.sql
+        psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
 
     - name: Run Unit Tests with pytest
       run: |
