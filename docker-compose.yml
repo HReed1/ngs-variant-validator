@@ -1,12 +1,17 @@
-version: '3.8'
 services:
-  postgres_db:
-    image: postgres:15
+  pipeline-db:
+    image: postgres:16
+    container_name: pipeline_postgres_local
     environment:
-      POSTGRES_USER: pipeline_user
-      POSTGRES_PASSWORD: securepassword123
-      POSTGRES_DB: variant_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local_dev_password
+      POSTGRES_DB: pipeline_db
     ports:
       - "5432:5432"
     volumes:
-      - ./db/init_schema.sql:/docker-entrypoint-initdb.d/init_schema.sql
+      - pipeline_pgdata:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+volumes:
+  pipeline_pgdata:
