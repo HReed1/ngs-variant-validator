@@ -3,3 +3,6 @@ pytest-mock
 flake8
 psycopg2-binary
 fastapi
+sqlalchemy
+httpx
+fastapi[standard]
