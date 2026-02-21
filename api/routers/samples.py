@@ -48,7 +48,8 @@ def list_samples(
     """
     List samples with optional filtering by assay_type and basic pagination.
     """
-    stmt = select(FrontendSample)
+    # Apply pagination and sorting (added sample_id as a unique tie-breaker for stable pagination)
+    stmt = select(FrontendSample).order_by(FrontendSample.created_at.desc(), FrontendSample.sample_id.desc()).offset(skip).limit(limit)
     
     # Apply optional assay filter
     if assay_type:
