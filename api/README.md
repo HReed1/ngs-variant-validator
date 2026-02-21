@@ -1,3 +1,5 @@
+## Front-end API
+
 ```mermaid
 flowchart TD
     Client([Client Application / UI])
