@@ -58,4 +58,4 @@ fastapi dev api/main.py
 
 ## Contact
 
-Harrison H. Vaughn Reed  | Bioinformatics Software Engineer
+Harrison H. Vaughn Reed  | Bioinformatics Software Engineer | Contact: HarrisonHVReed@gmail.com
