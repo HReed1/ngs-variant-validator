@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from api.routers import samples
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session, selectinload
-from models import FrontendSample
-from schemas import SampleResponse
+from api.models import FrontendSample
+from api.schemas import SampleResponse
 
 # Database Setup (using the frontend_api role we created)
 DATABASE_URL = "postgresql+psycopg2://frontend_api:strong_frontend_password@localhost:5432/pipeline_db"
@@ -45,6 +46,10 @@ def get_sample(sample_id: str, db: Session = Depends(get_db)):
     return result
 
 app.include_router(samples.router)
+
+@app.get("/")
+def read_root():
+    return RedirectResponse(url="/docs")
 
 @app.get("/health")
 def health_check():
