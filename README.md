@@ -27,6 +27,45 @@ ngs-variant-validator/
 └── requirements.txt            # Python dependencies
 ```
 
+```mermaid
+graph TD
+    %% Define Nodes
+    Seq[ONT Sequencer]
+    S3[S3 / Blob Storage]
+    
+    subgraph Data Ingestion
+        ETL_In[ETL Job: process_run.py]
+        Crypto[Application-Level Encryption]
+    end
+    
+    DB[(PostgreSQL Database)]
+    
+    subgraph Bioinformatics Pipeline
+        NF_Start[db_fetch_inputs.py]
+        NF_Exec[Nextflow Process Execution]
+        NF_End[db_log_outputs.py]
+    end
+    
+    subgraph Frontend Services
+        API[FastAPI Application]
+        UI[End User / Web UI]
+    end
+
+    %% Define Flow
+    Seq -- FASTQ/BAM --> S3
+    S3 -.-> |File URIs| ETL_In
+    ETL_In <--> |Encrypts patient_id| Crypto
+    ETL_In -- Inserts base metadata --> DB
+    
+    DB -.-> |Reads config| NF_Start
+    NF_Start -- JSON Inputs --> NF_Exec
+    NF_Exec -- BAM/VCF/JSON --> NF_End
+    NF_End -- Writes results & metrics --> DB
+    
+    DB -.-> |Queries safe view| API
+    API -- Serves JSON --> UI
+```
+
 ## 🔒 Security & Database Architecture
 
 The system uses a PostgreSQL backend with strict role-based access control (RBAC):
