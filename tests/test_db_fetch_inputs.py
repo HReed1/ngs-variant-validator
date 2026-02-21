@@ -13,11 +13,12 @@ spec = importlib.util.spec_from_file_location("db_fetch_inputs", script_path)
 db_fetch_inputs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(db_fetch_inputs)
 
-def test_fetch_sample_files_success(temp_workspace):
+def test_fetch_sample_files_success(tmpdir):
     """
     Test that the database fetcher correctly queries Postgres and writes the JSON output.
     We mock psycopg2 to prevent actual database connections during the unit test.
     """
+    tmpdir.chdir()
     
     # 1. Arrange: Define our mock data
     target_sample = "SRR11032656"
