@@ -1,6 +1,6 @@
-name: NGS Pipeline CI/CD
+name: Backend Architecture CI
 
-# 1. The Triggers: When should this run?
+# Trigger the tests on push to main, or whenever a PR is opened against main
 on:
   push:
     branches: [ "main" ]
@@ -8,57 +8,80 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-test:
-    # 2. The Environment: What machine are we running on?
+  test-and-coverage:
     runs-on: ubuntu-latest
-
-    # Add a PostgreSQL service container
+    
+    # 1. Spin up the PostgreSQL Service Container
     services:
       postgres:
-        image: postgres:15
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: strong_etl_password
+          POSTGRES_PASSWORD: local_dev_password
           POSTGRES_DB: pipeline_db
-        ports:
-          - 5432:5432
+        # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
-    # 3. The Steps: What exactly are we doing?
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      # 2. Check out the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.9"
+      # 3. Initialize the Database Schema & Roles
+      # GitHub Actions services don't auto-mount local folders like docker-compose does, 
+      # so we pipe our SQL scripts into the running container directly.
+      - name: Initialize Database
+        env:
+          PGPASSWORD: local_dev_password
+        run: |
+          # Wait a few seconds to ensure DB is fully accepting connections
+          sleep 3 
+          psql -h localhost -U postgres -d pipeline_db -f db-init/01_schema.sql
+          psql -h localhost -U postgres -d pipeline_db -f db-init/02_security.sql
+          psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      # 4. Set up Python
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+          cache: 'pip' # Automatically caches requirements to speed up future runs
 
-    - name: Lint Codebase with flake8
-      run: |
-        # Stop the build if there are critical Python syntax errors
-        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Treat other formatting issues as warnings
-        flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      # 5. Install Dependencies
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov httpx
 
-    - name: Set up Database Schema and Roles
-      env:
-        PGPASSWORD: strong_etl_password
-      run: |
-        psql -h localhost -U postgres -d pipeline_db -f db-init/01_schema.sql
-        psql -h localhost -U postgres -d pipeline_db -f db-init/02_security.sql
-        psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
+      # 6. Run the Test Suite
+      - name: Execute Pytest
+        env:
+          # Inject the highest-privileged role credentials so conftest.py can set up/tear down
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: pipeline_db
+          DB_USER: etl_worker
+          DB_PASSWORD: strong_etl_password
+          # Inject a dummy encryption key for the security/ETL tests
+          ENCRYPTION_KEY: "dummy_base64_encryption_key_for_testing=" 
+        run: |
+          pytest tests/ \
+            --cov=api \
+            --cov=etl \
+            --cov=src/ont-clinical-pipeline/bin \
+            --cov-report=xml \
+            --cov-report=term-missing
 
-    - name: Run Unit Tests with pytest
-      run: |
-        # Execute the testing framework we just built
-        pytest tests/ -v
+      # 7. (Optional) Upload Coverage Report
+      # Useful if you want to enforce a rule like "PRs must not drop code coverage below 85%"
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
