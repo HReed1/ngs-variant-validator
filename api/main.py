@@ -25,25 +25,6 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/samples/{sample_id}", response_model=SampleResponse)
-def get_sample(sample_id: str, db: Session = Depends(get_db)):
-    # selectinload prevents the "N+1 query problem" by fetching all related data efficiently
-    stmt = (
-        select(FrontendSample)
-        .where(FrontendSample.sample_id == sample_id)
-        .options(
-            selectinload(FrontendSample.files),
-            selectinload(FrontendSample.results),
-            selectinload(FrontendSample.endpoints)
-        )
-    )
-    
-    result = db.execute(stmt).scalar_one_or_none()
-    
-    if result is None:
-        raise HTTPException(status_code=404, detail="Sample not found")
-        
-    return result
 
 app.include_router(samples.router)
 
