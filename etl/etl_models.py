@@ -17,8 +17,8 @@ class Sample(Base):
     
     assay_type: Mapped[str] = mapped_column(String(50), nullable=False)
     metadata_col: Mapped[dict] = mapped_column("metadata", JSONB, default={})
-    created_at: Mapped[datetime]
-    updated_at: Mapped[datetime]
+    created_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
     # Relationships pointing directly to the base Sample model
     files: Mapped[List["FileLocation"]] = relationship(

@@ -1,5 +1,5 @@
 import time
-from sqlalchemy import text
+from sqlalchemy import text, create_engine
 from etl.etl_models import Sample
 
 def test_updated_at_trigger_fires(db_session):
@@ -7,17 +7,25 @@ def test_updated_at_trigger_fires(db_session):
     Verifies that the Postgres trigger 'update_modified_column' 
     successfully intercepts updates and changes the timestamp.
     """
-    # Insert initial record
+    # Insert initial record. Since we're using a transaction that's rolled back,
+    # Postgres's DEFAULT CURRENT_TIMESTAMP doesn't immediately bubble up to the ORM
+    # until a full commit (which we don't want to actually persist to disk in tests). 
+    # For testing the trigger, we'll explicitly insert a timestamp.
+    from datetime import datetime
+    
     test_sample = Sample(
         sample_id="TRIGGER-TEST",
         patient_id="PHI",
-        assay_type="RNA-Seq"
+        assay_type="RNA-Seq",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
     db_session.add(test_sample)
     db_session.commit()
     
     # Fetch original timestamp
     initial_record = db_session.query(Sample).filter_by(sample_id="TRIGGER-TEST").first()
+    db_session.refresh(initial_record)
     original_time = initial_record.updated_at
     
     time.sleep(0.1) # Small delay to ensure timestamp difference
@@ -26,10 +34,13 @@ def test_updated_at_trigger_fires(db_session):
     initial_record.assay_type = "RNA-Seq-V2"
     db_session.commit()
     
-    # Fetch updated timestamp
+    # Fetch updated timestamp and explicitly refresh to bypass SQLAlchemy cache
     updated_record = db_session.query(Sample).filter_by(sample_id="TRIGGER-TEST").first()
+    db_session.refresh(updated_record)
     new_time = updated_record.updated_at
     
+    assert original_time is not None, "Original time is None"
+    assert new_time is not None, "New time is None"
     assert new_time > original_time
 
 def test_frontend_role_cannot_access_phi(db_session):
