@@ -11,14 +11,14 @@ def test_updated_at_trigger_fires(db_session):
     # Postgres's DEFAULT CURRENT_TIMESTAMP doesn't immediately bubble up to the ORM
     # until a full commit (which we don't want to actually persist to disk in tests). 
     # For testing the trigger, we'll explicitly insert a timestamp.
-    from datetime import datetime
+    from datetime import datetime, timezone
     
     test_sample = Sample(
         sample_id="TRIGGER-TEST",
         patient_id="PHI",
         assay_type="RNA-Seq",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+updated_at=datetime.now(timezone.utc)
     )
     db_session.add(test_sample)
     db_session.commit()

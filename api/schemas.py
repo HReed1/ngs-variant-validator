@@ -7,7 +7,7 @@ class FileLocationResponse(BaseModel):
     id: int
     file_type: str
     s3_uri: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -16,7 +16,7 @@ class PipelineResultResponse(BaseModel):
     clinical_report_json_uri: Optional[str]
     pipeline_version: Optional[str]
     metrics: Dict[str, Any]
-    run_date: datetime
+    run_date: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
@@ -25,6 +25,7 @@ class ApiEndpointResponse(BaseModel):
     service_name: str
     endpoint_url: str
     method: str
+    created_at: Optional[datetime] = None
     
     model_config = ConfigDict(from_attributes=True)
 
