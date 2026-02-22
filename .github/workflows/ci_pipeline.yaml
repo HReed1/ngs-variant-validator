@@ -15,10 +15,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.9
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           cache: 'pip'
 
       - name: Install Security Tools
@@ -76,10 +76,10 @@ jobs:
           psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
 
       # 4. Set up Python
-      - name: Set up Python 3.9
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: "3.9"
+          python-version: "3.11"
           cache: 'pip' # Automatically caches requirements to speed up future runs
 
       # 5. Install Dependencies
