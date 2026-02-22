@@ -11,3 +11,7 @@ httpx
 fastapi[standard]
 requests
 python-dotenv
+
+# --- Security Patches for Transitive Dependencies ---
+filelock>=3.20.3
+python-multipart>=0.0.22
