@@ -25,6 +25,56 @@ ngs-variant-validator/
 └── .github/workflows/          # CI/CD pipelines enforcing test coverage via Branch Protection
 ```
 
+### The CI/CD & SSOT Workflow
+- **Branch Protection**: The main branch is locked. All Pull Requests automatically spin up a PostgreSQL service container, initialize the schema, and run the pytest suite. Code cannot be merged if tests fail or coverage drops.
+- **Regulatory Sync**: When an issue is labeled with a requirement tag (e.g., [REQ-SEC-01]), the Webhook service parses the AST of a master Google Doc, extracts the compliance text, and executes a GraphQL mutation to sync it to the GitHub Kanban board.
+
+## 🔒 Security & Database Architecture
+
+The system uses a PostgreSQL backend with strict role-based access control (RBAC):
+- **ETL Worker Role (`etl_worker`)**: Has full access to the base `samples` table, including Protected Health Information (PHI) like `patient_id`. Used by the Nextflow pipeline to log results.
+- **Frontend API Role (`frontend_api`)**: Can only access the `frontend_samples` View. The view explicitly excludes the `patient_id` column, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of a vulnerability.
+
+## Quick Start
+We use automated bootstrapping scripts to ensure local development is frictionless.
+
+### 1. Start the Environment
+This script verifies Docker, spins up the PostgreSQL database, waits for it to become healthy, and provisions an optional ngrok tunnel for webhook testing.
+
+```bash
+chmod +x utils/start_dev.sh
+./utils/start_dev.sh
+```
+
+### 2. Run the Test Suite
+Ensure your virtual environment is active and dependencies are installed (pip install -r requirements.txt).
+
+```bash
+pytest tests/ -v
+```
+
+### 3. (Optional) Run the API locally:
+
+```bash
+uvicorn api.main:app --reload
+```
+
+### 4. Teardown
+Safely spin down the containers. Use the --clean flag if you want to wipe the database volume and start fresh tomorrow.
+
+```bash
+chmod +x utils/stop_dev.sh
+./utils/stop_dev.sh --clean
+```
+
+## Front-end API
+A lightweight, secure FastAPI microservice designed to serve clinical pipeline results to frontend dashboards.
+
+### Key Features
+* **Zero-Trust Security:** Operates under a restricted PostgreSQL role (`frontend_api`) that queries a sanitized database view (`frontend_samples`). It is impossible for this API to leak patient PHI.
+* **Scalable Pagination:** Implements strict limits and offset logic, sorting deterministically by timestamp and sample ID to ensure stable UI rendering.
+* **High-Speed Metadata Search:** Utilizes PostgreSQL GIN (Generalized Inverted Index) indices to perform fast searches across schema-less JSONB metadata columns.
+
 ```mermaid
 graph TD
     %% Define Nodes
@@ -64,35 +114,6 @@ graph TD
     API -- Serves JSON --> UI
 ```
 
-## 🔒 Security & Database Architecture
-
-The system uses a PostgreSQL backend with strict role-based access control (RBAC):
-- **ETL Worker Role (`etl_worker`)**: Has full access to the base `samples` table, including Protected Health Information (PHI) like `patient_id`. Used by the Nextflow pipeline to log results.
-- **Frontend API Role (`frontend_api`)**: Can only access the `frontend_samples` View. The view explicitly excludes the `patient_id` column, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of a vulnerability. Database triggers automatically manage timestamps.
-
-## Quick Start
-1. Install dependencies, create a virtual environment, and spin up the local database:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-docker-compose up -d pipeline-db
-```
-
-2. Run the automated test suite:
-
-```bash
-pytest tests/ -v
-```
-
-3. (Optional) Run the API locally:
-
-```bash
-fastapi dev api/main.py
-```
-
 
 ## Contact
-
-Harrison H. Vaughn Reed  | Bioinformatics Software Engineer | Contact: HarrisonHVReed@gmail.com
+Harrison H. Vaughn Reed | HarrisonHVReed@gmail.com
