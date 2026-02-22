@@ -11,3 +11,4 @@ httpx
 fastapi[standard]
 requests
 python-dotenv
+pip-audit

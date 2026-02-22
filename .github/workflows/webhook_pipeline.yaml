@@ -36,6 +36,11 @@ jobs:
           pip install -r requirements.txt
           pip install pytest httpx
 
+      - name: Run pip-audit (Webhook Dependencies)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
       - name: Run pytest suite
         env:
           GITHUB_WEBHOOK_SECRET: ci_dummy_secret
@@ -75,6 +80,17 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: 'fs'
+          scan-ref: './pipline-pm-webhook'
+          format: 'table'
+          exit-code: '1' # Fails the pipeline if vulnerabilities are found
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
