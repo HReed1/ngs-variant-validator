@@ -1,22 +1,25 @@
-name: CI/CD Pipeline
+name: Webhook CI/CD
 
 on:
   push:
+    branches: [ "main" ]
+  pull_request:
     branches: [ "main" ]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}-webhook # Differentiates it if you add more images later
 
 jobs:
-  # ---------------------------------------------------
-  # JOB 1: Continuous Integration (Testing)
-  # ---------------------------------------------------
   test:
     name: Run Unit Tests
     runs-on: ubuntu-latest
-    
+    # Tell the runner to execute all 'run' commands inside the webhook folder
+    defaults:
+      run:
+        working-directory: ./pipline-pm-webhook
+        
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,7 +28,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip' # Caches dependencies to speed up future runs
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
@@ -34,8 +37,6 @@ jobs:
           pip install pytest httpx
 
       - name: Run pytest suite
-        # We must provide dummy environment variables here!
-        # Otherwise, app/config.py will intentionally crash the app on startup.
         env:
           GITHUB_WEBHOOK_SECRET: ci_dummy_secret
           GITHUB_PAT: ci_dummy_pat
@@ -44,14 +45,10 @@ jobs:
           GOOGLE_DOC_ID: ci_dummy_doc
         run: pytest -v tests/
 
-  # ---------------------------------------------------
-  # JOB 2: Continuous Deployment (Build & Push)
-  # ---------------------------------------------------
   build-and-push:
     name: Build and Push Docker Image
-    needs: test # CRITICAL: This explicitly blocks the build if 'test' fails
+    needs: test 
     runs-on: ubuntu-latest
-    
     permissions:
       contents: read
       packages: write
@@ -59,6 +56,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -79,8 +79,9 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          push: true
+          # Point the Docker builder to the webhook directory!
+          context: ./pipline-pm-webhook
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

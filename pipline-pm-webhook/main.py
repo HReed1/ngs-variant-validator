@@ -19,7 +19,7 @@ async def handle_github_webhook(
 ):
     data = await request.json()
     
-    if x_github_event == "issues" and data.get("action") in ["opened", "labeled"]:
+    if x_github_event == "issues" and data.get("action") in ["opened", "labeled", 'edited']:
         issue = data.get("issue", {})
         search_text = f"{issue.get('title', '')} {issue.get('body', '')}"
         match = REQ_PATTERN.search(search_text)
