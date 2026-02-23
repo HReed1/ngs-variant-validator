@@ -89,7 +89,13 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov httpx
 
-      # 6. Run the Test Suite
+      # 6. Apply Database Migrations (NEW STEP)
+      # This upgrades the flat db-init schema to our new biological hierarchy
+      - name: Run Alembic Migrations
+        run: |
+          alembic upgrade head
+
+      # 7. Run the Test Suite (Updated numbering)
       - name: Execute Pytest
         env:
           # Inject the highest-privileged role credentials so conftest.py can set up/tear down
