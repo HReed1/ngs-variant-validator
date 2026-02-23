@@ -3,12 +3,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
 
-# Import our database dependencies, models, and schemas
 from api.database import get_db
-from api.models import FrontendSample
+from api.models import FrontendSample, FrontendRun
 from api.schemas import SampleResponse
 
-# Set up the router
 router = APIRouter(
     prefix="/samples",
     tags=["Samples"]
@@ -17,17 +15,17 @@ router = APIRouter(
 @router.get("/{sample_id}", response_model=SampleResponse)
 def get_single_sample(sample_id: str, db: Session = Depends(get_db)):
     """
-    Retrieve a specific sample by its ID, including all associated files, 
-    pipeline results, and downstream endpoints.
+    Retrieve a specific sample by its ID, including all associated sequencing runs, 
+    files, pipeline results, and downstream endpoints.
     """
     stmt = (
         select(FrontendSample)
         .where(FrontendSample.sample_id == sample_id)
-        # selectinload fetches child tables efficiently to prevent N+1 query bottlenecks
+        # Deep eager loading to prevent N+1 query bottlenecks
         .options(
-            selectinload(FrontendSample.files),
-            selectinload(FrontendSample.results),
-            selectinload(FrontendSample.endpoints)
+            selectinload(FrontendSample.runs).selectinload(FrontendRun.files),
+            selectinload(FrontendSample.runs).selectinload(FrontendRun.results),
+            selectinload(FrontendSample.runs).selectinload(FrontendRun.endpoints)
         )
     )
     
@@ -48,18 +46,22 @@ def list_samples(
     """
     List samples with optional filtering by assay_type and basic pagination.
     """
-    # Apply pagination and sorting (added sample_id as a unique tie-breaker for stable pagination)
-    stmt = select(FrontendSample).order_by(FrontendSample.created_at.desc(), FrontendSample.sample_id.desc()).offset(skip).limit(limit)
+    stmt = select(FrontendSample)
     
-    # Apply optional assay filter
+    # If filtering by assay, we must join the child run table
     if assay_type:
-        stmt = stmt.where(FrontendSample.assay_type == assay_type)
+        stmt = stmt.join(FrontendSample.runs).where(FrontendRun.assay_type == assay_type)
         
-    # Apply pagination and sorting (sorting by created_at is good practice)
-    stmt = stmt.order_by(FrontendSample.created_at.desc()).offset(skip).limit(limit)
+    stmt = stmt.options(
+        selectinload(FrontendSample.runs).selectinload(FrontendRun.files),
+        selectinload(FrontendSample.runs).selectinload(FrontendRun.results),
+        selectinload(FrontendSample.runs).selectinload(FrontendRun.endpoints)
+    )
     
-    # Execute query
-    results = db.execute(stmt).scalars().all()
+    stmt = stmt.order_by(FrontendSample.created_at.desc(), FrontendSample.sample_id.desc()).offset(skip).limit(limit)
+    
+    # .unique() is required by SQLAlchemy when fetching joined collections to deduplicate the root objects
+    results = db.execute(stmt).scalars().unique().all()
     return results
 
 @router.get("/search/metadata", response_model=List[SampleResponse])
@@ -69,16 +71,21 @@ def search_samples_by_metadata(
     db: Session = Depends(get_db)
 ):
     """
-    Query the schema-less JSONB metadata column. 
-    Because we added a GIN index to this column in Postgres, this search 
-    will remain extremely fast even at 1,000,000+ records.
+    Query the schema-less JSONB metadata column on the nested run.
+    The GIN index on runs.metadata keeps this query highly performant.
     """
-    # The ->> operator in Postgres extracts a JSON object field as text
     stmt = (
         select(FrontendSample)
-        .where(FrontendSample.metadata_col[key].astext == value)
+        .join(FrontendSample.runs)
+        # The ->> operator extracts a JSON object field as text for fast evaluation
+        .where(FrontendRun.metadata_col[key].astext == value)
+        .options(
+            selectinload(FrontendSample.runs).selectinload(FrontendRun.files),
+            selectinload(FrontendSample.runs).selectinload(FrontendRun.results),
+            selectinload(FrontendSample.runs).selectinload(FrontendRun.endpoints)
+        )
         .limit(100)
     )
     
-    results = db.execute(stmt).scalars().all()
+    results = db.execute(stmt).scalars().unique().all()
     return results
