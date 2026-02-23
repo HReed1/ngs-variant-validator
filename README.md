@@ -35,45 +35,6 @@ The system uses a highly normalized PostgreSQL backend with strict role-based ac
 - **ETL Worker Role (`etl_worker`)**: Has full access to the base `patients`, `samples`, and `runs` tables, including Protected Health Information (PHI) like `patient_id`. Used by the Nextflow pipeline to log results.
 - **Frontend API Role (`frontend_api`)**: Can only access the Zero-Trust Views (`frontend_patients`, `frontend_samples`, `frontend_runs`). The patient view projects an MD5 surrogate hash and explicitly excludes the raw `patient_id` ciphertext, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of an application vulnerability.
 
-```mermaid
-graph TD
-    %% Define Nodes
-    Seq[ONT Sequencer]
-    S3[S3 / Blob Storage]
-    
-    subgraph Data Ingestion
-        ETL_In[ETL Job: process_run.py]
-        Crypto[Application-Level Encryption]
-    end
-    
-    DB[(PostgreSQL Database)]
-    
-    subgraph Bioinformatics Pipeline
-        NF_Start[db_fetch_inputs.py]
-        NF_Exec[Nextflow Process Execution]
-        NF_End[db_log_outputs.py]
-    end
-    
-    subgraph Frontend Services
-        API[FastAPI Application]
-        UI[End User / Web UI]
-    end
-
-    %% Define Flow
-    Seq -- FASTQ/BAM --> S3
-    S3 -.-> |File URIs| ETL_In
-    ETL_In <--> |Encrypts patient_id| Crypto
-    ETL_In -- Inserts hierarchy (Patient/Sample/Run) --> DB
-    
-    DB -.-> |Queries run_id| NF_Start
-    NF_Start -- JSON Inputs --> NF_Exec
-    NF_Exec -- BAM/VCF/JSON --> NF_End
-    NF_End -- Writes results & metrics to Run --> DB
-    
-    DB -.-> |Queries safe views| API
-    API -- Serves JSON --> UI
-```
-
 ## Quick Start
 We use automated bootstrapping scripts to ensure local development is frictionless.
 
@@ -113,46 +74,6 @@ A lightweight, secure FastAPI microservice designed to serve clinical pipeline r
 * **Zero-Trust Security:** Operates under a restricted PostgreSQL role (`frontend_api`) that queries a sanitized database view (`frontend_samples`). It is impossible for this API to leak patient PHI.
 * **Scalable Pagination:** Implements strict limits and offset logic, sorting deterministically by timestamp and sample ID to ensure stable UI rendering.
 * **High-Speed Metadata Search:** Utilizes PostgreSQL GIN (Generalized Inverted Index) indices to perform fast searches across schema-less JSONB metadata columns.
-
-```mermaid
-graph TD
-    %% Define Nodes
-    Seq[ONT Sequencer]
-    S3[S3 / Blob Storage]
-    
-    subgraph Data Ingestion
-        ETL_In[ETL Job: process_run.py]
-        Crypto[Application-Level Encryption]
-    end
-    
-    DB[(PostgreSQL Database)]
-    
-    subgraph Bioinformatics Pipeline
-        NF_Start[db_fetch_inputs.py]
-        NF_Exec[Nextflow Process Execution]
-        NF_End[db_log_outputs.py]
-    end
-    
-    subgraph Frontend Services
-        API[FastAPI Application]
-        UI[End User / Web UI]
-    end
-
-    %% Define Flow
-    Seq -- FASTQ/BAM --> S3
-    S3 -.-> |File URIs| ETL_In
-    ETL_In <--> |Encrypts patient_id| Crypto
-    ETL_In -- Inserts base metadata --> DB
-    
-    DB -.-> |Reads config| NF_Start
-    NF_Start -- JSON Inputs --> NF_Exec
-    NF_Exec -- BAM/VCF/JSON --> NF_End
-    NF_End -- Writes results & metrics --> DB
-    
-    DB -.-> |Queries safe view| API
-    API -- Serves JSON --> UI
-```
-
 
 ## Contact
 Harrison H. Vaughn Reed | HarrisonHVReed@gmail.com
