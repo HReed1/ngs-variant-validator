@@ -26,7 +26,7 @@ def test_main_success_with_metrics(mock_connect, tmp_path):
     # 2. Simulate Nextflow executing the script via command line
     test_args = [
         "db_log_outputs.py",
-        "--sample", "SAMP-123",
+        "--run", "SAMP-123",
         "--report", "s3://clinical-reports/SAMP-123_final.json",
         "--version", "v1.2.0",
         "--metrics", str(metrics_file)
@@ -54,7 +54,7 @@ def test_main_success_without_metrics(mock_connect):
     """Ensure the script functions correctly if the optional metrics file is omitted."""
     test_args = [
         "db_log_outputs.py",
-        "--sample", "SAMP-456",
+        "--run", "SAMP-456",
         "--report", "s3://clinical-reports/SAMP-456_final.json",
         "--version", "v1.2.0"
     ]
@@ -75,7 +75,7 @@ def test_main_db_error_triggers_rollback(mock_connect):
     """Ensure that if the database throws an error, we roll back and exit with code 1."""
     test_args = [
         "db_log_outputs.py",
-        "--sample", "SAMP-999",
+        "--run", "SAMP-999",
         "--report", "s3://error-test.json",
         "--version", "v1.2.0"
     ]

@@ -21,7 +21,7 @@ def test_fetch_sample_files_success(tmpdir):
     tmpdir.chdir()
     
     # 1. Arrange: Define our mock data
-    target_sample = "SRR11032656"
+    target_run = "SRR11032656"
     mock_db_results = [
         ("FASTQ_ONT", "s3://ngs-variant-validator-work/raw/SRR11032656.fastq.gz"),
         ("REFERENCE", "s3://ngs-variant-validator-work/ref/hg38.fasta")
@@ -38,24 +38,24 @@ def test_fetch_sample_files_success(tmpdir):
         mock_psycopg2.connect.return_value = mock_connection
         
         # 3. Act: Run the actual function
-        db_fetch_inputs.fetch_sample_files(
-            sample_id=target_sample,
+        db_fetch_inputs.fetch_run_files(
+            run_id=target_run,
             db_host="fake_host",
             db_user="fake_user",
             db_pass="fake_pass",
             db_name="fake_db"
         )
         
-        # 4. Assert: Verify the SQL query was executed with the right sample ID
+        # 4. Assert: Verify the SQL query was executed with the right run ID
         mock_cursor.execute.assert_called_once()
         executed_query, query_params = mock_cursor.execute.call_args[0]
-        assert query_params == (target_sample,)
+        assert query_params == (target_run,)
         
         # 5. Assert: Verify the JSON file was created perfectly
         assert os.path.exists('inputs.json')
         with open('inputs.json', 'r') as f:
             output_data = json.load(f)
             
-        assert output_data["sample_id"] == target_sample
+        assert output_data["run_id"] == target_run
         assert output_data["reads"] == "s3://ngs-variant-validator-work/raw/SRR11032656.fastq.gz"
         assert output_data["reference"] == "s3://ngs-variant-validator-work/ref/hg38.fasta"
