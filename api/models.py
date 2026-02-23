@@ -7,69 +7,106 @@ from sqlalchemy.dialects.postgresql import JSONB
 class Base(DeclarativeBase):
     pass
 
+class FrontendPatient(Base):
+    __tablename__ = "frontend_patients"
+    
+    # patient_hash acts as an opaque surrogate key because patient_id is explicitly omitted
+    patient_hash: Mapped[str] = mapped_column(String(32), primary_key=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+
+    samples: Mapped[List["FrontendSample"]] = relationship(
+        back_populates="patient",
+        primaryjoin="FrontendPatient.patient_hash == foreign(FrontendSample.patient_hash)"
+    )
+
 class FrontendSample(Base):
     __tablename__ = "frontend_samples"
-    # Important: Tell SQLAlchemy this acts as a primary key for the ORM's sake
+    
     sample_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    patient_hash: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+
+    patient: Mapped["FrontendPatient"] = relationship(
+        back_populates="samples",
+        primaryjoin="foreign(FrontendSample.patient_hash) == FrontendPatient.patient_hash"
+    )
+    runs: Mapped[List["FrontendRun"]] = relationship(
+        back_populates="sample",
+        primaryjoin="FrontendSample.sample_id == foreign(FrontendRun.sample_id)"
+    )
+
+class FrontendRun(Base):
+    __tablename__ = "frontend_runs"
+    
+    run_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    sample_id: Mapped[str] = mapped_column(String(50))
     assay_type: Mapped[str] = mapped_column(String(50))
     metadata_col: Mapped[dict] = mapped_column("metadata", JSONB, default={})
     created_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
     updated_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
-    # Relationships to child tables
+    sample: Mapped["FrontendSample"] = relationship(
+        back_populates="runs",
+        primaryjoin="foreign(FrontendRun.sample_id) == FrontendSample.sample_id"
+    )
     files: Mapped[List["FileLocation"]] = relationship(
-        back_populates="sample",
-        primaryjoin="FrontendSample.sample_id == foreign(FileLocation.sample_id)"
+        back_populates="run",
+        primaryjoin="FrontendRun.run_id == foreign(FileLocation.run_id)"
     )
     results: Mapped[List["PipelineResult"]] = relationship(
-        back_populates="sample",
-        primaryjoin="FrontendSample.sample_id == foreign(PipelineResult.sample_id)"
+        back_populates="run",
+        primaryjoin="FrontendRun.run_id == foreign(PipelineResult.run_id)"
     )
     endpoints: Mapped[List["ApiEndpoint"]] = relationship(
-        back_populates="sample",
-        primaryjoin="FrontendSample.sample_id == foreign(ApiEndpoint.sample_id)"
+        back_populates="run",
+        primaryjoin="FrontendRun.run_id == foreign(ApiEndpoint.run_id)"
     )
 
-
+# FileLocation, PipelineResult, and ApiEndpoint remain identical to the ETL side, 
+# except their SQLAlchemy ForeignKeys and Relationships point to `runs.run_id` and `FrontendRun`.
 class FileLocation(Base):
     __tablename__ = "file_locations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    sample_id: Mapped[str] = mapped_column(ForeignKey("samples.sample_id", ondelete="CASCADE"))
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id", ondelete="CASCADE"))
     file_type: Mapped[str] = mapped_column(String(50))
     s3_uri: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime]
 
-    sample: Mapped["FrontendSample"] = relationship(
+    run: Mapped["FrontendRun"] = relationship(
         back_populates="files",
-        primaryjoin="foreign(FileLocation.sample_id) == FrontendSample.sample_id"
+        primaryjoin="foreign(FileLocation.run_id) == FrontendRun.run_id"
     )
+
+# ... (PipelineResult and ApiEndpoint mirror FileLocation by pointing to run_id and FrontendRun)
 
 
 class PipelineResult(Base):
     __tablename__ = "pipeline_results"
     id: Mapped[int] = mapped_column(primary_key=True)
-    sample_id: Mapped[str] = mapped_column(ForeignKey("samples.sample_id", ondelete="CASCADE"))
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id", ondelete="CASCADE"))
     clinical_report_json_uri: Mapped[Optional[str]] = mapped_column(Text)
     pipeline_version: Mapped[Optional[str]] = mapped_column(String(50))
     metrics: Mapped[dict] = mapped_column(JSONB, default={})
     run_date: Mapped[datetime]
 
-    sample: Mapped["FrontendSample"] = relationship(
+    run: Mapped["FrontendRun"] = relationship(
         back_populates="results",
-        primaryjoin="foreign(PipelineResult.sample_id) == FrontendSample.sample_id"
+        primaryjoin="foreign(PipelineResult.run_id) == FrontendRun.run_id"
     )
 
 
 class ApiEndpoint(Base):
     __tablename__ = "api_endpoints"
     id: Mapped[int] = mapped_column(primary_key=True)
-    sample_id: Mapped[str] = mapped_column(ForeignKey("samples.sample_id", ondelete="CASCADE"))
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id", ondelete="CASCADE"))
     service_name: Mapped[str] = mapped_column(String(100))
     endpoint_url: Mapped[str] = mapped_column(Text)
     method: Mapped[str] = mapped_column(String(10), default="GET")
     created_at: Mapped[datetime]
 
-    sample: Mapped["FrontendSample"] = relationship(
+    run: Mapped["FrontendRun"] = relationship(
         back_populates="endpoints",
-        primaryjoin="foreign(ApiEndpoint.sample_id) == FrontendSample.sample_id"
+        primaryjoin="foreign(ApiEndpoint.run_id) == FrontendRun.run_id"
     )

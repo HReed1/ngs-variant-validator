@@ -10,28 +10,47 @@ if "ENCRYPTION_KEY" not in os.environ:
 
 # Import your database session, models, and encryption manager
 from etl.database import SessionLocal
-from etl.etl_models import Sample, FileLocation
+from etl.etl_models import Patient, Sample, Run, FileLocation
 from etl.security import crypto_manager
 
-def generate_synthetic_data(num_records: int = 50):
+def generate_synthetic_data(num_runs: int = 50):
     db = SessionLocal()
     
     sequencers = ["PromethION 24", "GridION", "MinION Mk1B"]
     assays = ["ONT_WGS", "ONT_RNASEQ", "ONT_TARGETED"]
     
+    # Create a smaller pool of patients and samples to demonstrate 1-to-many relationships
+    num_patients = 15
+    patients = [f"PT-{uuid.uuid4().hex[:8].upper()}" for _ in range(num_patients)]
+    samples = [f"ONT-SMPL-{random.randint(10000, 99999)}" for _ in range(num_patients * 2)]
+    
     try:
-        for i in range(num_records):
-            # Generate dummy identifiers
-            sample_id = f"ONT-SMPL-{random.randint(10000, 99999)}"
-            raw_patient_id = f"PT-{uuid.uuid4().hex[:8].upper()}"
+        for i in range(num_runs):
+            raw_patient_id = random.choice(patients)
+            sample_id = random.choice(samples)
+            run_id = f"RUN-{uuid.uuid4().hex[:8].upper()}"
             
             # Encrypt the PHI before insertion
             encrypted_phi = crypto_manager.encrypt_patient_id(raw_patient_id)
             
-            # Create the sample record
-            sample = Sample(
+            # Step 1: Get or Create Patient
+            patient_record = db.query(Patient).filter_by(patient_id=encrypted_phi).first()
+            if not patient_record:
+                patient_record = Patient(patient_id=encrypted_phi)
+                db.add(patient_record)
+                db.flush() 
+            
+            # Step 2: Get or Create Sample
+            sample_record = db.query(Sample).filter_by(sample_id=sample_id).first()
+            if not sample_record:
+                sample_record = Sample(sample_id=sample_id, patient_id=encrypted_phi)
+                db.add(sample_record)
+                db.flush()
+            
+            # Step 3: Create the Run record
+            run = Run(
+                run_id=run_id,
                 sample_id=sample_id,
-                patient_id=encrypted_phi,
                 assay_type=random.choice(assays),
                 metadata_col={
                     "sequencer": random.choice(sequencers),
@@ -40,16 +59,16 @@ def generate_synthetic_data(num_records: int = 50):
                     "basecalling_model": "dna_r10.4.1_e8.2_400bps_hac@v4.2.0"
                 }
             )
-            db.add(sample)
+            db.add(run)
             
-            # Create the associated file locations (simulating S3 drop)
+            # Step 4: Create the associated file locations (pointing to RUN)
             fastq_file = FileLocation(
-                sample_id=sample_id,
+                run_id=run_id,
                 file_type="FASTQ_ONT",
-                s3_uri=f"s3://my-ont-bucket/runs/{sample_id}.fastq.gz"
+                s3_uri=f"s3://my-ont-bucket/runs/{run_id}.fastq.gz"
             )
             ref_file = FileLocation(
-                sample_id=sample_id,
+                run_id=run_id,
                 file_type="REFERENCE",
                 s3_uri="s3://my-ont-bucket/refs/hg38.fa"
             )
@@ -57,7 +76,7 @@ def generate_synthetic_data(num_records: int = 50):
             
         # Commit all 50 records in a single transaction
         db.commit()
-        print(f"Successfully seeded {num_records} synthetic samples into the database.")
+        print(f"Successfully seeded {num_runs} synthetic sequencing runs into the database.")
         
     except Exception as e:
         db.rollback()
