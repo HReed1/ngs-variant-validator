@@ -7,7 +7,7 @@
 ## Overview
 `ngs-variant-validator` is an automated, CI/CD-driven testing framework and execution environment for a clinical-grade Oxford Nanopore (ONT) Whole-Genome Sequencing (WGS) pipeline. 
 
-Designed with stringent Software Development Life Cycle (SDLC) best practices, this repository demonstrates how to bridge the gap between biological research and enterprise software engineering. It features a containerized Nextflow architecture, decoupled database I/O via PostgreSQL, a secure REST API, and a dynamic GitHub webhook microservice that maintains a Single Source of Truth (SSOT) between regulatory Google Docs and GitHub Projects Kanban boards.
+Designed with stringent Software Development Life Cycle (SDLC) best practices, this repository demonstrates how to bridge the gap between biological research and enterprise software engineering. It features a containerized Nextflow architecture, strictly normalized database I/O via PostgreSQL, a secure REST API, and a dynamic GitHub webhook microservice that maintains a Single Source of Truth (SSOT) between regulatory Google Docs and GitHub Projects Kanban boards.
 
 ## 🏗️ System Architecture & Repository Structure
 
@@ -15,8 +15,9 @@ This codebase is strictly modular, separating core bioinformatics logic from clo
 
 ```text
 ngs-variant-validator/
+├── alembic/                    # Database migration scripts enforcing schema state
 ├── api/                        # FastAPI backend serving pipeline results (PHI physically blocked)
-├── db-init/                    # PostgreSQL schema, RBAC security roles, views, and triggers
+├── db-init/                    # PostgreSQL initial schema, RBAC security roles, and triggers
 ├── etl/                        # Data ingestion, DB seeding, and PHI encryption logic
 ├── pipline-pm-webhook/         # SSOT Webhook: Syncs Google Doc requirements to GitHub Kanban
 ├── src/ont-clinical-pipeline/  # Core Nextflow DAG and Python I/O middleware
@@ -26,14 +27,14 @@ ngs-variant-validator/
 ```
 
 ### The CI/CD & SSOT Workflow
-- **Branch Protection**: The main branch is locked. All Pull Requests automatically spin up a PostgreSQL service container, initialize the schema, and run the pytest suite. Code cannot be merged if tests fail or coverage drops.
+- **Branch Protection**: The main branch is locked. All Pull Requests automatically spin up a PostgreSQL service container, apply Alembic schema migrations, and run the pytest suite. Code cannot be merged if tests fail or coverage drops.
 - **Regulatory Sync**: When an issue is labeled with a requirement tag (e.g., [REQ-SEC-01]), the Webhook service parses the AST of a master Google Doc, extracts the compliance text, and executes a GraphQL mutation to sync it to the GitHub Kanban board.
 
 ## 🔒 Security & Database Architecture
 
-The system uses a highly normalized PostgreSQL backend with strict role-based access control (RBAC):
-- **ETL Worker Role (`etl_worker`)**: Has full access to the base `patients`, `samples`, and `runs` tables, including Protected Health Information (PHI) like `patient_id`. Used by the Nextflow pipeline to log results.
-- **Frontend API Role (`frontend_api`)**: Can only access the Zero-Trust Views (`frontend_patients`, `frontend_samples`, `frontend_runs`). The patient view projects an MD5 surrogate hash and explicitly excludes the raw `patient_id` ciphertext, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of an application vulnerability.
+The system uses a highly normalized PostgreSQL backend structured around a strict biological hierarchy (Patient -> Sample -> Run), with uncompromising role-based access control (RBAC):
+- **ETL Worker Role (`etl_worker`)**:Has full data-manipulation access to the base patients, samples, and runs tables. Application-level symmetric cryptography (Fernet) encrypts Protected Health Information (PHI) before it is inserted. Used by Nextflow to log results.
+- **Frontend API Role (`frontend_api`)**: Can only access the Zero-Trust Views (frontend_patients, frontend_samples, frontend_runs). The views project an MD5 surrogate hash and explicitly exclude the raw patient_id ciphertext, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of an application vulnerability.
 
 ```mermaid
 graph TD
@@ -71,7 +72,7 @@ graph TD
     NF_End -- Writes results & metrics to Run --> DB
     
     DB -.-> |Queries safe views| API
-    API -- Serves JSON --> UI
+    API -- Serves Nested JSON --> UI
 ```
 
 ## Quick Start
@@ -85,18 +86,27 @@ chmod +x utils/start_dev.sh
 ./utils/start_dev.sh
 ```
 
-### 2. Run the Test Suite
+### Apply Database Migrations
+
+```bash
+alembic upgrade head
+```
+
+### 3. Run the Test Suite
 Ensure your virtual environment is active and dependencies are installed (pip install -r requirements.txt).
 
 ```bash
 pytest tests/ -v
 ```
 
-### 3. (Optional) Run the API locally:
-
+### 4. Seed the Database & Run the API locally:
+Generate synthetic patient, sample, and run data, then start the web server to explore the Swagger documentation.
 ```bash
+python -m etl.jobs.seed_database
 uvicorn api.main:app --reload
 ```
+
+Navigate to http://localhost:8000/docs in your browser.
 
 ### 4. Teardown
 Safely spin down the containers. Use the --clean flag if you want to wipe the database volume and start fresh tomorrow.
@@ -110,49 +120,10 @@ chmod +x utils/stop_dev.sh
 A lightweight, secure FastAPI microservice designed to serve clinical pipeline results to frontend dashboards.
 
 ### Key Features
-* **Zero-Trust Security:** Operates under a restricted PostgreSQL role (`frontend_api`) that queries a sanitized database view (`frontend_samples`). It is impossible for this API to leak patient PHI.
-* **Scalable Pagination:** Implements strict limits and offset logic, sorting deterministically by timestamp and sample ID to ensure stable UI rendering.
-* **High-Speed Metadata Search:** Utilizes PostgreSQL GIN (Generalized Inverted Index) indices to perform fast searches across schema-less JSONB metadata columns.
-
-```mermaid
-graph TD
-    %% Define Nodes
-    Seq[ONT Sequencer]
-    S3[S3 / Blob Storage]
-    
-    subgraph Data Ingestion
-        ETL_In[ETL Job: process_run.py]
-        Crypto[Application-Level Encryption]
-    end
-    
-    DB[(PostgreSQL Database)]
-    
-    subgraph Bioinformatics Pipeline
-        NF_Start[db_fetch_inputs.py]
-        NF_Exec[Nextflow Process Execution]
-        NF_End[db_log_outputs.py]
-    end
-    
-    subgraph Frontend Services
-        API[FastAPI Application]
-        UI[End User / Web UI]
-    end
-
-    %% Define Flow
-    Seq -- FASTQ/BAM --> S3
-    S3 -.-> |File URIs| ETL_In
-    ETL_In <--> |Encrypts patient_id| Crypto
-    ETL_In -- Inserts base metadata --> DB
-    
-    DB -.-> |Reads config| NF_Start
-    NF_Start -- JSON Inputs --> NF_Exec
-    NF_Exec -- BAM/VCF/JSON --> NF_End
-    NF_End -- Writes results & metrics --> DB
-    
-    DB -.-> |Queries safe view| API
-    API -- Serves JSON --> UI
-```
-
+* **Zero-Trust Security:** Operates under a restricted PostgreSQL role that is physically barred from accessing base tables, utilizing MD5 hashing to safely expose relational identifiers.
+* **Hierarchial Serialization:** Automatically constructs and serves deeply nested JSON relationships (e.g., fetching a Sample eagerly loads all associated Runs and file pointers in a single query via .selectinload()).
+* **Scalable Pagination:** Implements strict limits and offset logic, sorting deterministically by timestamp to ensure stable UI rendering.
+* **High-Speed Metadata Search:** Utilizes PostgreSQL GIN (Generalized Inverted Index) indices to perform lightning-fast queries across schema-less JSONB metadata columns (like assay_type or sequencer hardware) without requiring complex JOINs.
 
 ## Contact
-Harrison H. Vaughn Reed | HarrisonHVReed@gmail.com
+Harrison H. Vaughn Reed | [EMAIL_ADDRESS]
