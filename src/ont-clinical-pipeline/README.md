@@ -18,7 +18,7 @@ flowchart TD
     end
 
     %% Step 1: Initialization
-    DB -- "1. Queries file_locations" --> Fetch
+    DB -- "1. Queries file_locations by run_id" --> Fetch
     Fetch -- "2. Emits inputs.csv" --> Align
     
     %% Step 2: Data Staging
@@ -34,7 +34,7 @@ flowchart TD
     Annotate -- "6. reports_ch (JSONs)" --> Log
 
     %% Step 5: Database Finalization
-    Log -- "7. Inserts pipeline_results<br>Updates samples metadata" --> DB
+    Log -- "7. Inserts pipeline_results<br>Updates run metadata" --> DB
 
     %% Styling
     classDef database fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000;
@@ -44,4 +44,3 @@ flowchart TD
     class DB database;
     class Storage storage;
     class Fetch,Align,Sort,Call,Annotate,Log process;
-```

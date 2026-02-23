@@ -9,9 +9,9 @@ flowchart LR
     end
 
     subgraph DB [PostgreSQL Instance]
-        Base[Base Table: samples<br>- sample_id<br>- patient_id ENCRYPTED<br>- metadata JSONB]
+        Base[Base Tables<br>patients, samples, runs<br>- Encrypted patient_id]
         Trigger[Trigger: update_modified_column]
-        View[[View: frontend_samples<br>- sample_id<br>- metadata JSONB]]
+        View[[Zero-Trust Views<br>frontend_patients, etc.<br>- MD5 patient_hash]]
         
         Base --- Trigger
         Base -.-> |Omits PHI| View
