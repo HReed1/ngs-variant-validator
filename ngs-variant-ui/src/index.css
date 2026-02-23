@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Force the root element to span the full viewport */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}

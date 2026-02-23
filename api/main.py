@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware  # <-- ADD THIS IMPORT
 from api.routers import samples
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session, selectinload
@@ -17,6 +18,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], # Explicitly allow the Vite frontend
+    allow_credentials=True,
+    allow_methods=["*"], # Allow GET, POST, OPTIONS, etc.
+    allow_headers=["*"], # Crucial: Allows our custom X-API-Key header to pass through
+)
+
 # Dependency to get the database session
 def get_db():
     db = SessionLocal()
@@ -24,7 +33,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 app.include_router(samples.router)
 

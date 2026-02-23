@@ -47,6 +47,13 @@ def generate_synthetic_data(num_runs: int = 50):
                 db.add(sample_record)
                 db.flush()
             
+            # Generate synthetic coverage depth array (e.g., 100 data points representing genomic windows)
+            # Simulating a normal distribution around 30x coverage
+            synthetic_coverage = [max(0, int(random.gauss(30, 5))) for _ in range(100)]
+            
+            # Generate synthetic read quality (Phred scores) over time
+            synthetic_quality = [max(10, min(40, int(random.gauss(32, 3)))) for _ in range(100)]
+
             # Step 3: Create the Run record
             run = Run(
                 run_id=run_id,
@@ -55,8 +62,11 @@ def generate_synthetic_data(num_runs: int = 50):
                 metadata_col={
                     "sequencer": random.choice(sequencers),
                     "flowcell": f"FLO-PRO{random.randint(100, 999)}",
-                    "qc_passed": random.choice([True, True, True, False]), # Mostly True
-                    "basecalling_model": "dna_r10.4.1_e8.2_400bps_hac@v4.2.0"
+                    "qc_passed": random.choice([True, True, True, False]),
+                    "basecalling_model": "dna_r10.4.1_e8.2_400bps_hac@v4.2.0",
+                    # Injecting array data for the UI charting
+                    "coverage_profile": synthetic_coverage,
+                    "quality_profile": synthetic_quality
                 }
             )
             db.add(run)
