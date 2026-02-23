@@ -1,73 +1,66 @@
-# React + TypeScript + Vite
+# NGS Variant Validator - Frontend UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A lightweight, browser-targeted React/Vite application designed to visualize bioinformatics workflow states and genomic quality metrics. 
 
-Currently, two official plugins are available:
+This client acts as a "dumb terminal". It contains zero bioinformatics logic and does not parse raw, multi-gigabyte genomic files (e.g., `.vcf`, `.bam`). Instead, it consumes strictly typed, deeply nested JSON payloads and pre-aggregated metadata directly from the FastAPI backend.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🏗️ Architecture & Core Technologies
 
-## React Compiler
+* **Framework:** React 18 + Vite (TypeScript)
+* **Styling:** Tailwind CSS v4 (using native `@theme` CSS variables)
+* **State & Data Fetching:** TanStack React Query (configured for 10-second background polling of Nextflow states)
+* **Routing:** React Router v6
+* **Visualizations:** Apache ECharts (`echarts-for-react`) for high-performance Canvas/SVG rendering of biological metrics
+* **Testing:** Vitest + React Testing Library
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 📂 Project Structure
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+ngs-variant-ui/
+├── src/
+│   ├── api/          # Axios client configuration and HTTP interceptors (Zero-Trust API Key injection)
+│   ├── components/   # Reusable UI elements (e.g., RunQualityChart.tsx for dual-axis plotting)
+│   ├── hooks/        # React Query custom hooks (useSamples, useSampleDetail)
+│   ├── pages/        # Top-level route components (SampleList.tsx, RunDetail.tsx)
+│   ├── types/        # Strict TypeScript interfaces mirroring backend Pydantic models
+│   ├── App.tsx       # React Router configuration
+│   └── main.tsx      # React Query Provider and DOM mount
+├── vite.config.ts    # Vite bundler and Vitest test environment configuration
+└── package.json      # NPM dependencies and scripts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🚀 Local Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Prerequisites
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+* Node.js v20+
+* A running instance of the `ngs-variant-validator` FastAPI backend (`localhost:8000`).
+
+### 1. Environment Variables
+
+Create a `.env` file in the root of the `ngs-variant-ui` directory to configure the API connection:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_FRONTEND_API_KEY=your_development_api_key
+
+```
+
+### 2. Run the Development Server
+
+```bash
+npm install
+npm run dev
+
+```
+
+The application will be accessible at `http://localhost:5173`.
+
+## 🧪 Testing
+
+The repository enforces a strict testing requirement for CI/CD gating. Tests are executed via Vitest utilizing a `jsdom` environment.
+
+```bash
+# Run tests locally
+npm run test
 ```
