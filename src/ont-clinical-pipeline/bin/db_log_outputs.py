@@ -8,7 +8,7 @@ from psycopg2.extras import Json
 
 def main():
     parser = argparse.ArgumentParser(description="Log Nextflow pipeline outputs to PostgreSQL.")
-    parser.add_argument("--sample", required=True, help="The Sample ID")
+    parser.add_argument("--run", required=True, help="The Run ID")
     parser.add_argument("--report", required=True, help="S3 URI of the final clinical report JSON")
     parser.add_argument("--version", required=True, help="Pipeline version string (e.g., v1.2.0)")
     parser.add_argument("--metrics", required=False, help="Path to a JSON file containing QC metrics")
@@ -39,36 +39,33 @@ def main():
         )
         cur = conn.cursor()
 
-        # 1. Insert the new pipeline run record
-        # psycopg2.extras.Json automatically serializes the Python dictionary for Postgres JSONB
+        # 1. Insert the new pipeline result record tied to the sequencing run
         insert_query = """
             INSERT INTO pipeline_results 
-            (sample_id, clinical_report_json_uri, pipeline_version, metrics)
+            (run_id, clinical_report_json_uri, pipeline_version, metrics)
             VALUES (%s, %s, %s, %s);
         """
         cur.execute(insert_query, (
-            args.sample, 
+            args.run, 
             args.report, 
             args.version, 
             Json(metrics_data)
         ))
 
-        # 2. Update the parent sample to flag it as complete
-        # The || operator in Postgres natively merges the new key/value pair into the 
-        # existing JSONB metadata without deleting other dynamic tags (e.g. sequencer type).
+        # 2. Update the parent run to flag it as complete
+        # The metadata column has moved to the `runs` table in the new hierarchy
         update_query = """
-            UPDATE samples 
+            UPDATE runs 
             SET metadata = metadata || '{"status": "complete"}'::jsonb 
-            WHERE sample_id = %s;
+            WHERE run_id = %s;
         """
-        cur.execute(update_query, (args.sample,))
+        cur.execute(update_query, (args.run,))
 
         # Commit the transaction so both the insert and update apply simultaneously
         conn.commit()
-        print(f"Successfully logged pipeline outputs for {args.sample}.")
+        print(f"Successfully logged pipeline outputs for {args.run}.")
 
     except psycopg2.Error as e:
-        # If any step fails, roll back the entire transaction to prevent partial data states
         if conn:
             conn.rollback()
         print(f"Database error during logging: {e}", file=sys.stderr)

@@ -1,7 +1,9 @@
-from datetime import datetime
-from sqlalchemy import create_engine, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
-from sqlalchemy.dialects.postgresql import JSONB
+import uuid
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# Import the centralized models instead of redefining them locally
+from etl.etl_models import Patient, Sample, Run, FileLocation
 from etl.security import crypto_manager
 
 # 1. ETL Database Setup (Using the highly-privileged etl_worker role)
@@ -9,49 +11,39 @@ DATABASE_URL = "postgresql+psycopg2://etl_worker:strong_etl_password@localhost:5
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-class Base(DeclarativeBase):
-    pass
-
-# 2. The ETL Models (Mapped to the base tables, NOT the views)
-class Sample(Base):
-    __tablename__ = "samples"
-    
-    sample_id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    
-    # The ETL worker has access to this column.
-    # IN PRACTICE: This should be an encrypted ciphertext string, not plain text.
-    patient_id: Mapped[str] = mapped_column(String(255)) 
-    
-    assay_type: Mapped[str] = mapped_column(String(50))
-    metadata_col: Mapped[dict] = mapped_column("metadata", JSONB, default={})
-    
-    # We let the database handle created_at/updated_at automatically
-    # so we don't define them here unless we need to read them back immediately.
-
-class FileLocation(Base):
-    __tablename__ = "file_locations"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    sample_id: Mapped[str] = mapped_column(String(50))
-    file_type: Mapped[str] = mapped_column(String(50))
-    s3_uri: Mapped[str] = mapped_column(Text)
-
-
-# 3. The Insertion Logic
+# 2. The Insertion Logic
 def insert_pipeline_results(sample_id: str, raw_patient_id: str, assay: str, fastq_r1: str, fastq_r2: str):
     """
-    Parses pipeline outputs and inserts them into the database.
+    Parses pipeline outputs and inserts them securely into the biological hierarchy.
     """
     
     # Concept: Encrypt the PHI before it touches the database
     encrypted_patient_id = crypto_manager.encrypt_patient_id(raw_patient_id)
     
+    # Generate a unique Run ID for this specific sequencing event
+    run_id = f"RUN-{uuid.uuid4().hex[:8].upper()}"
+    
     db = SessionLocal()
     
     try:
-        # Create the core sample record
-        new_sample = Sample(
+        # Step 1: Get or Create the Patient (Top of Hierarchy)
+        patient = db.query(Patient).filter_by(patient_id=encrypted_patient_id).first()
+        if not patient:
+            patient = Patient(patient_id=encrypted_patient_id)
+            db.add(patient)
+            db.flush() # Ensure the DB recognizes it before creating the sample
+        
+        # Step 2: Get or Create the physical Sample
+        sample = db.query(Sample).filter_by(sample_id=sample_id).first()
+        if not sample:
+            sample = Sample(sample_id=sample_id, patient_id=encrypted_patient_id)
+            db.add(sample)
+            db.flush()
+            
+        # Step 3: Create the sequencing Run (The Event)
+        new_run = Run(
+            run_id=run_id,
             sample_id=sample_id,
-            patient_id=encrypted_patient_id, 
             assay_type=assay,
             metadata_col={
                 "sequencer": "NovaSeq 6000",
@@ -59,25 +51,16 @@ def insert_pipeline_results(sample_id: str, raw_patient_id: str, assay: str, fas
                 "qc_passed": True
             }
         )
-        db.add(new_sample)
+        db.add(new_run)
         
-        # Create the associated file records
-        r1_file = FileLocation(
-            sample_id=sample_id,
-            file_type="FASTQ_R1",
-            s3_uri=fastq_r1
-        )
-        r2_file = FileLocation(
-            sample_id=sample_id,
-            file_type="FASTQ_R2",
-            s3_uri=fastq_r2
-        )
+        # Step 4: Create the associated file records (Now tied to the Run, not the Sample)
+        r1_file = FileLocation(run_id=run_id, file_type="FASTQ_R1", s3_uri=fastq_r1)
+        r2_file = FileLocation(run_id=run_id, file_type="FASTQ_R2", s3_uri=fastq_r2)
         db.add_all([r1_file, r2_file])
         
-        # Commit the transaction. If any step fails, the entire block rolls back,
-        # preventing orphaned files or partial sample data.
+        # Commit the transaction. If any step fails, the entire block rolls back.
         db.commit()
-        print(f"Successfully inserted sample {sample_id} into the database.")
+        print(f"Successfully inserted run {run_id} for sample {sample_id} into the database.")
         
     except Exception as e:
         db.rollback()
@@ -90,7 +73,7 @@ def insert_pipeline_results(sample_id: str, raw_patient_id: str, assay: str, fas
 if __name__ == "__main__":
     insert_pipeline_results(
         sample_id="SMPL-99801",
-        raw_patient_id=crypto_manager.encrypt_patient_id("PT-4459-X"),
+        raw_patient_id="PT-4459-X",
         assay="WGS",
         fastq_r1="s3://my-bio-bucket/runs/SMPL-99801_R1.fastq.gz",
         fastq_r2="s3://my-bio-bucket/runs/SMPL-99801_R2.fastq.gz"

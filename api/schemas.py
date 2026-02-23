@@ -29,17 +29,39 @@ class ApiEndpointResponse(BaseModel):
     
     model_config = ConfigDict(from_attributes=True)
 
-# --- Parent Schema ---
-class SampleResponse(BaseModel):
-    sample_id: str
+# --- The Sequencing Event (Run) Schema ---
+class RunResponse(BaseModel):
+    run_id: str
     assay_type: str
     metadata_col: Dict[str, Any]
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
-    # Nested relationships
+    # Nested relationships for the Run
     files: List[FileLocationResponse] = []
     results: List[PipelineResultResponse] = []
     endpoints: List[ApiEndpointResponse] = []
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# --- The Physical Material (Sample) Schema ---
+class SampleResponse(BaseModel):
+    sample_id: str
+    patient_hash: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    # A single sample can have multiple sequencing runs (e.g., WGS & RNA-Seq)
+    runs: List[RunResponse] = []
+    
+    model_config = ConfigDict(from_attributes=True)
+
+# --- The Root Subject (Patient) Schema ---
+class PatientResponse(BaseModel):
+    patient_hash: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    samples: List[SampleResponse] = []
     
     model_config = ConfigDict(from_attributes=True)

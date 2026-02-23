@@ -14,7 +14,7 @@ flowchart TD
     end
 
     subgraph PostgreSQL [PostgreSQL Database]
-        View[[View: frontend_samples<br>Omits patient_id]]
+        Views[[Zero-Trust Views<br>frontend_patients (MD5 Hash)<br>frontend_samples<br>frontend_runs]]
         ChildTables[(Child Tables<br>files, results, endpoints)]
     end
 
@@ -25,19 +25,19 @@ flowchart TD
     
     %% Database Interaction
     Router -- "Builds query with" --> Models
-    Models ==> |"Read-Only Access"| View
+    Models ==> |"Read-Only Access"| Views
     Models -.-> |"selectinload() Joins"| ChildTables
     
     %% Response Flow
-    View -- "Raw DB Rows" --> Models
+    Views -- "Raw DB Rows" --> Models
     Models -- "ORM Objects" --> Router
     Router -- "Validates & Formats" --> Schemas
-    Schemas -- "Returns JSON" --> Client
+    Schemas -- "Returns Nested JSON" --> Client
 
     %% Styling
     classDef api fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#000;
     classDef safe_db fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#000;
     
     class Main,Router,Schemas,Models,DB_Conn api;
-    class View,ChildTables safe_db;
+    class Views,ChildTables safe_db;
 ```
