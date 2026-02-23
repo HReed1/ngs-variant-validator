@@ -26,3 +26,8 @@ else
     echo -e "${GREEN}✓ Environment stopped safely.${NC}"
     echo -e "${NC}Tip: Run './stop_dev.sh --clean' if you want to completely wipe the database data next time.${NC}"
 fi
+
+# 3. Stop colima
+echo -e "${YELLOW}Stopping colima...${NC}"
+colima stop
+echo -e "${GREEN}✓ Colima stopped.${NC}"
