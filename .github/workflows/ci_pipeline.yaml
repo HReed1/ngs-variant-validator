@@ -71,7 +71,6 @@ jobs:
         run: |
           # Wait a few seconds to ensure DB is fully accepting connections
           sleep 3 
-          psql -h localhost -U postgres -d pipeline_db -f db-init/01_schema.sql
           psql -h localhost -U postgres -d pipeline_db -f db-init/02_security.sql
           psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
 
