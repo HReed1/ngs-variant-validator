@@ -6,10 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from etl.etl_models import Patient, Sample, Run, FileLocation
 from etl.security import crypto_manager
 
-# 1. ETL Database Setup (Using the highly-privileged etl_worker role)
-DATABASE_URL = "postgresql+psycopg2://etl_worker:strong_etl_password@localhost:5432/pipeline_db"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from etl.database import SessionLocal
 
 # 2. The Insertion Logic
 def insert_pipeline_results(sample_id: str, raw_patient_id: str, assay: str, fastq_r1: str, fastq_r2: str):

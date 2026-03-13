@@ -13,8 +13,14 @@ echo -e "${YELLOW}Checking local development environment...${NC}"
 
 # 1. Check if the Docker daemon is actually running
 if ! docker info > /dev/null 2>&1; then
-  echo -e "${RED}Error: Docker is not running. Please start Docker Desktop and try again.${NC}"
-  exit 1
+    echo -e "${YELLOW}Docker is not running. Attempting to start/restart colima...${NC}"
+    colima start || colima restart
+    
+    # Check again after trying to start colima
+    if ! docker info > /dev/null 2>&1; then
+        echo -e "${RED}Error: Docker is still not running after trying to start colima. Please check your colima/docker installation.${NC}"
+        exit 1
+    fi
 fi
 
 # 2. Check Database Container

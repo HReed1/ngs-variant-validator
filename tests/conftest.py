@@ -1,7 +1,16 @@
+import os
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
+
+# Set mock environment variables for tests BEFORE importing application code
+# so that load_dotenv() uses these instead of real .env values.
+os.environ["DB_HOST"] = "localhost"
+os.environ["DB_PORT"] = "5432"
+os.environ["DB_NAME"] = "pipeline_db"
+os.environ["DB_USER"] = "etl_worker"
+os.environ["DB_PASSWORD"] = "strong_etl_password"
 
 from api.main import app
 from api.database import get_db

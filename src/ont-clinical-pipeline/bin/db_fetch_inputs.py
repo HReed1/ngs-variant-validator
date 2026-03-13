@@ -42,8 +42,8 @@ if __name__ == "__main__":
     # Credentials pulled from environment variables injected by Nextflow
     fetch_run_files(
         args.run,
-        os.environ.get('DB_HOST'),
-        os.environ.get('DB_USER'),
-        os.environ.get('DB_PASS'),
-        os.environ.get('DB_NAME')
+        os.environ.get('DB_HOST', ValueError("DB_HOST environment variable is not set")),
+        os.environ.get('DB_USER', ValueError("DB_USER environment variable is not set")),
+        os.environ.get('DB_PASS', ValueError("DB_PASSWORD environment variable is not set")),
+        os.environ.get('DB_NAME', ValueError("DB_NAME environment variable is not set"))
     )
