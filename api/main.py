@@ -1,16 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware  # <-- ADD THIS IMPORT
+from fastapi.middleware.cors import CORSMiddleware
 from api.routers import samples
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker, Session, selectinload
 from api.models import FrontendSample
 from api.schemas import SampleResponse
 
-# Database Setup (using the frontend_api role we created)
-DATABASE_URL = "postgresql+psycopg2://frontend_api:strong_frontend_password@localhost:5432/pipeline_db"
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from api.database import SessionLocal
 
 app = FastAPI(
     title="Bioinformatics Pipeline API",
