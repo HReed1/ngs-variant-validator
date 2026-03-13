@@ -1,1 +1,66 @@
-Generic single-database configuration.
+# Alembic Database Migrations
+
+This directory contains the SQLAlchemy Alembic configuration and migration scripts for the NGS Variant Validator project. Alembic is used to manage and apply schema changes to the PostgreSQL database in a controlled and tracked manner.
+
+## Configuration
+
+Database connection settings are loaded dynamically from environment variables. Alembic will automatically load variables from a `.env` file in the project root if it exists.
+
+You must provide either a complete `DATABASE_URL` or the individual connection parameters:
+
+1. **Direct URL**:
+   ```env
+   DATABASE_URL=postgresql+psycopg2://user:password@host:port/dbname
+   ```
+
+2. **Individual Variables**:
+   ```env
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=postgres
+   DB_USER=postgres
+   DB_PASSWORD=secret
+   ```
+
+## Common Commands
+
+Ensure you are in the project root directory and your virtual environment is active before running these commands.
+
+### 1. Apply Migrations (Upgrade)
+To apply all pending migrations and bring your database schema up to date:
+```bash
+alembic upgrade head
+```
+
+To upgrade to a specific revision:
+```bash
+alembic upgrade <revision_id>
+```
+
+### 2. Revert Migrations (Downgrade)
+To undo the last migration:
+```bash
+alembic downgrade -1
+```
+To revert everything to the base (empty) state:
+```bash
+alembic downgrade base
+```
+
+### 3. Create a New Migration
+To create an empty migration script:
+```bash
+alembic revision -m "Description of your changes"
+```
+*(Note: `target_metadata` is currently set to `None` in `env.py`, so `--autogenerate` will not automatically detect SQLAlchemy model changes until the models' MetaData is linked).*
+
+### 4. View Migration History
+To see the current revision of the database:
+```bash
+alembic current
+```
+
+To view the full history of migration scripts:
+```bash
+alembic history --verbose
+```
