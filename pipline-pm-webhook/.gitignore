@@ -1,4 +1,0 @@
-venv/
-service_account.json
-.gitignore
-.env*
