@@ -77,8 +77,8 @@ def search_samples_by_metadata(
     stmt = (
         select(FrontendSample)
         .join(FrontendSample.runs)
-        # The ->> operator extracts a JSON object field as text for fast evaluation
-        .where(FrontendRun.metadata_col[key].astext == value)
+        # Use the SQLAlchemy JSON containment operator:
+        .where(FrontendRun.metadata_col.contains({key: value}))
         .options(
             selectinload(FrontendSample.runs).selectinload(FrontendRun.files),
             selectinload(FrontendSample.runs).selectinload(FrontendRun.results),

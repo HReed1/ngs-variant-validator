@@ -22,11 +22,11 @@ def main():
             metrics_data = json.load(f)
 
     # Pull connection credentials from environment variables injected by Nextflow secrets
-    db_host = os.environ.get("DB_HOST", None)
-    db_port = os.environ.get("DB_PORT", None)
-    db_name = os.environ.get("DB_NAME", None)
-    db_user = os.environ.get("DB_USER", None)
-    db_pass = os.environ.get("DB_PASSWORD", None)
+    db_host = os.environ.get("DB_HOST", ValueError("DB_HOST environment variable is not set"))
+    db_port = os.environ.get("DB_PORT", ValueError("DB_PORT environment variable is not set"))
+    db_name = os.environ.get("DB_NAME", ValueError("DB_NAME environment variable is not set"))
+    db_user = os.environ.get("DB_USER", ValueError("DB_USER environment variable is not set"))
+    db_pass = os.environ.get("DB_PASSWORD", ValueError("DB_PASSWORD environment variable is not set"))
 
     conn = None
     try:

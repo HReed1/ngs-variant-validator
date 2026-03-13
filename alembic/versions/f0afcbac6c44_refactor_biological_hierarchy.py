@@ -20,10 +20,11 @@ def upgrade() -> None:
     op.execute("DROP VIEW IF EXISTS public.frontend_samples CASCADE;")
 
     # 2. Drop legacy flat tables
-    op.drop_table('api_endpoints')
-    op.drop_table('pipeline_results')
-    op.drop_table('file_locations')
-    op.drop_table('samples')
+    op.execute("DROP TABLE IF EXISTS api_endpoints CASCADE;")
+    op.execute("DROP TABLE IF EXISTS pipeline_results CASCADE;")
+    op.execute("DROP TABLE IF EXISTS file_locations CASCADE;")
+    op.execute("DROP TABLE IF EXISTS samples CASCADE;")
+    
 
     # 3. Create the Normalized Base Tables
     op.create_table(

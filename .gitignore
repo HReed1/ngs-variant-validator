@@ -1,1 +1,23 @@
+# Environments & Secrets
 venv/
+env/
+.env
+.env.*
+service_account.json
+.bandit
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+coverage.xml
+
+# Node & UI
+ngs-variant-ui/node_modules/
+ngs-variant-ui/dist/
+ngs-variant-ui/npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

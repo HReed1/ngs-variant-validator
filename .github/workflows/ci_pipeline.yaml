@@ -62,25 +62,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 3. Initialize the Database Schema & Roles
-      # GitHub Actions services don't auto-mount local folders like docker-compose does, 
-      # so we pipe our SQL scripts into the running container directly.
-      - name: Initialize Database
+      # 3. Initialize the Database Roles
+      - name: Initialize Roles
         env:
           PGPASSWORD: local_dev_password
         run: |
-          # Wait a few seconds to ensure DB is fully accepting connections
           sleep 3 
-          psql -h localhost -U postgres -d pipeline_db -f db-init/01_schema.sql
           psql -h localhost -U postgres -d pipeline_db -f db-init/02_security.sql
-          psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
 
       # 4. Set up Python
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-          cache: 'pip' # Automatically caches requirements to speed up future runs
+          cache: 'pip'
 
       # 5. Install Dependencies
       - name: Install Dependencies
@@ -89,13 +84,25 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov httpx
 
-      # 6. Apply Database Migrations (NEW STEP)
-      # This upgrades the flat db-init schema to our new biological hierarchy
+      # 6. Apply Database Migrations
       - name: Run Alembic Migrations
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: pipeline_db
+          DB_USER: postgres
+          DB_PASSWORD: local_dev_password
         run: |
           alembic upgrade head
 
-      # 7. Run the Test Suite (Updated numbering)
+      # 7. Apply Triggers
+      - name: Initialize Triggers
+        env:
+          PGPASSWORD: local_dev_password
+        run: |
+          psql -h localhost -U postgres -d pipeline_db -f db-init/03_triggers.sql
+
+      # 8. Run the Test Suite
       - name: Execute Pytest
         env:
           # Inject the highest-privileged role credentials so conftest.py can set up/tear down
