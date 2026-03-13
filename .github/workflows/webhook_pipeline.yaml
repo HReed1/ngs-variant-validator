@@ -18,7 +18,7 @@ jobs:
     # Tell the runner to execute all 'run' commands inside the webhook folder
     defaults:
       run:
-        working-directory: ./pipline-pm-webhook
+        working-directory: ./pipeline-pm-webhook
         
     steps:
       - name: Checkout repository
@@ -85,7 +85,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.24.0
         with:
           scan-type: 'fs'
-          scan-ref: './pipline-pm-webhook'
+          scan-ref: './pipeline-pm-webhook'
           format: 'table'
           exit-code: '1' # Fails the pipeline if vulnerabilities are found
           ignore-unfixed: true
@@ -96,7 +96,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           # Point the Docker builder to the webhook directory!
-          context: ./pipline-pm-webhook
+          context: ./pipeline-pm-webhook
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
