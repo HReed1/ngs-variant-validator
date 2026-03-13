@@ -19,7 +19,7 @@ ngs-variant-validator/
 ├── api/                        # FastAPI backend serving pipeline results (PHI physically blocked)
 ├── db-init/                    # PostgreSQL initial schema, RBAC security roles, and triggers
 ├── etl/                        # Data ingestion, DB seeding, and PHI encryption logic
-├── pipline-pm-webhook/         # SSOT Webhook: Syncs Google Doc requirements to GitHub Kanban
+├── pipeline-pm-webhook/         # SSOT Webhook: Syncs Google Doc requirements to GitHub Kanban
 ├── src/ont-clinical-pipeline/  # Core Nextflow DAG and Python I/O middleware
 ├── tests/                      # Automated test suite (pytest) across API, ETL, and Webhooks
 ├── utils/                      # Developer QoL scripts (start_dev.sh, stop_dev.sh)
