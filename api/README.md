@@ -14,7 +14,7 @@ flowchart TD
     end
 
     subgraph PostgreSQL [PostgreSQL Database]
-        Views[[Zero-Trust Views<br>frontend_patients (MD5 Hash)<br>frontend_samples<br>frontend_runs]]
+        Views[["Zero-Trust Views<br>frontend_patients (MD5)"<br>frontend_samples<br>frontend_runs]]
         ChildTables[(Child Tables<br>files, results, endpoints)]
     end
 
