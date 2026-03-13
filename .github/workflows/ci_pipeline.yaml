@@ -86,6 +86,12 @@ jobs:
 
       # 6. Apply Database Migrations
       - name: Run Alembic Migrations
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: pipeline_db
+          DB_USER: postgres
+          DB_PASSWORD: local_dev_password
         run: |
           alembic upgrade head
 
