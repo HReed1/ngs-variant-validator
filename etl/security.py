@@ -3,7 +3,9 @@ from cryptography.fernet import Fernet
 
 class PHICryptoManager:
     def __init__(self):
-        key = os.environ.get("ENCRYPTION_KEY", ValueError("ENCRYPTION_KEY environment variable is not set."))
+        key = os.environ.get("ENCRYPTION_KEY")
+        if not key:
+            raise ValueError("ENCRYPTION_KEY environment variable is not set.")
         self.cipher_suite = Fernet(key.encode())
 
     def encrypt_patient_id(self, patient_id: str) -> str:
