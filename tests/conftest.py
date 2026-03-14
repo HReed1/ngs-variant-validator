@@ -11,9 +11,10 @@ os.environ["DB_PORT"] = "5432"
 os.environ["DB_NAME"] = "pipeline_db"
 os.environ["DB_USER"] = "etl_worker"
 os.environ["DB_PASSWORD"] = "strong_etl_password"
+os.environ["API_KEY"] = "test_api_key_123"
 
 from api.main import app
-from api.database import get_db
+from core.database import get_db
 
 # Connect to a dedicated test database (or your local docker instance)
 TEST_DATABASE_URL = "postgresql+psycopg2://etl_worker:strong_etl_password@localhost:5432/pipeline_db"
@@ -48,4 +49,4 @@ def client(db_session):
             pass
             
     app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
+    yield TestClient(app, headers={"X-API-Key": "test_api_key_123"})

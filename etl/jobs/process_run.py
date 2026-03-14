@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from etl.etl_models import Patient, Sample, Run, FileLocation
 from etl.security import crypto_manager
 
-from etl.database import SessionLocal
+from core.database import SessionLocal
 
 # 2. The Insertion Logic
 def insert_pipeline_results(sample_id: str, raw_patient_id: str, assay: str, fastq_r1: str, fastq_r2: str):
