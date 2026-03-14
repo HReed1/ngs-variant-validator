@@ -1,0 +1,1 @@
+aws iam attach-role-policy --role-name NextflowECSInstanceRole --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role

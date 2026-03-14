@@ -1,0 +1,11 @@
+FROM ubuntu:22.04
+
+# Avoid prompts from apt
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install -y minimap2 samtools wget curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    wget https://github.com/brentp/mosdepth/releases/download/v0.3.3/mosdepth && \
+    chmod +x mosdepth && \
+    mv mosdepth /usr/local/bin/

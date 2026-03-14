@@ -5,6 +5,10 @@ env/
 .env.*
 service_account.json
 .bandit
+work/*
+.nextflow/*
+.nextflow
+.nextflow*
 
 # Python Cache
 __pycache__/

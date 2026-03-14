@@ -52,14 +52,22 @@ def main():
             Json(metrics_data)
         ))
 
-        # 2. Update the parent run to flag it as complete
-        # The metadata column has moved to the `runs` table in the new hierarchy
+        # 2. Update the parent run to flag it as complete AND inject chart metrics
         update_query = """
             UPDATE runs 
-            SET metadata = metadata || '{"status": "complete"}'::jsonb 
+            SET metadata = metadata || %s::jsonb 
             WHERE run_id = %s;
         """
-        cur.execute(update_query, (args.run,))
+        
+        # Merge status and metrics
+        updated_metadata = {"status": "complete"}
+        if metrics_data:
+            if "coverage_profile" in metrics_data:
+                updated_metadata["coverage_profile"] = metrics_data["coverage_profile"]
+            if "quality_profile" in metrics_data:
+                updated_metadata["quality_profile"] = metrics_data["quality_profile"]
+        
+        cur.execute(update_query, (json.dumps(updated_metadata), args.run))
 
         # Commit the transaction so both the insert and update apply simultaneously
         conn.commit()

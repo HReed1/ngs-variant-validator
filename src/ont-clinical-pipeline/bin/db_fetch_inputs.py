@@ -44,6 +44,6 @@ if __name__ == "__main__":
         args.run,
         os.environ.get('DB_HOST', ValueError("DB_HOST environment variable is not set")),
         os.environ.get('DB_USER', ValueError("DB_USER environment variable is not set")),
-        os.environ.get('DB_PASS', ValueError("DB_PASSWORD environment variable is not set")),
+        os.environ.get('DB_PASSWORD', ValueError("DB_PASSWORD environment variable is not set")),
         os.environ.get('DB_NAME', ValueError("DB_NAME environment variable is not set"))
     )
