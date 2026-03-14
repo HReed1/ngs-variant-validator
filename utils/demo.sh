@@ -23,4 +23,5 @@ docker exec -it pipeline_postgres_local psql -U frontend_api -d pipeline_db -c "
 # Disocvery Github Project and Field IDs for information
 venv/bin/python utils/discover_ids.py 
 
-curl "http://localhost:8000/samples/search/metadata?key=assay_type&value=ONT_WGS"
+# Check API Key authentication
+curl -H "X-API-Key: ${API_KEY}" "http://localhost:8000/samples/search/metadata?key=assay_type&value=ONT_WGS"

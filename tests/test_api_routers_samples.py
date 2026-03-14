@@ -98,3 +98,22 @@ def test_search_samples_by_metadata_no_results(client, seed_samples):
     
     assert response.status_code == 200
     assert response.json() == []
+
+def test_api_key_missing():
+    """Ensure that completely omitting the API key is caught."""
+    from fastapi.testclient import TestClient
+    from api.main import app
+    # Create a fresh client *without* the default headers injected by the fixture
+    unauth_client = TestClient(app)
+    response = unauth_client.get("/samples/?limit=1")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or missing API Key"
+
+def test_api_key_invalid():
+    """Ensure that providing a bogus API key is caught."""
+    from fastapi.testclient import TestClient
+    from api.main import app
+    invalid_client = TestClient(app, headers={"X-API-Key": "totally_wrong_key"})
+    response = invalid_client.get("/samples/?limit=1")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid or missing API Key"
