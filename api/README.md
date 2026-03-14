@@ -9,7 +9,7 @@ flowchart TD
         Main[main.py<br>App Entrypoint]
         Router[routers/samples.py<br>API Endpoints]
         Schemas[schemas.py<br>Pydantic Models<br>JSON Serialization]
-        Models[api/models.py<br>SQLAlchemy ORM<br>(Inherits from core/models.py)]
+        Models[api/models.py<br>SQLAlchemy ORM<br>Inherits from core/models.py]
     end
 
     subgraph Core_Module [Shared Core Library]
