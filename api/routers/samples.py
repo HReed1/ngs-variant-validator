@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
 
-from api.database import get_db
+from core.database import get_db
 from api.models import FrontendSample, FrontendRun
 from api.schemas import SampleResponse
 

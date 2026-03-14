@@ -14,7 +14,7 @@ os.environ["DB_PASSWORD"] = "strong_etl_password"
 os.environ["API_KEY"] = "test_api_key_123"
 
 from api.main import app
-from api.database import get_db
+from core.database import get_db
 
 # Connect to a dedicated test database (or your local docker instance)
 TEST_DATABASE_URL = "postgresql+psycopg2://etl_worker:strong_etl_password@localhost:5432/pipeline_db"

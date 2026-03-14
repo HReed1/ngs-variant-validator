@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker, Session, selectinload
 from api.models import FrontendSample
 from api.schemas import SampleResponse
 
-from api.database import SessionLocal
+from core.database import SessionLocal
 
 EXPECTED_API_KEY = os.environ.get("API_KEY")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
