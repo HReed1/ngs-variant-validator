@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import String, ForeignKey, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, foreign
+from core.models import FileLocationMixin, PipelineResultMixin, ApiEndpointMixin
 from sqlalchemy.dialects.postgresql import JSONB
 
 class Base(DeclarativeBase):
@@ -64,48 +65,20 @@ class FrontendRun(Base):
         primaryjoin="FrontendRun.run_id == foreign(ApiEndpoint.run_id)"
     )
 
-# FileLocation, PipelineResult, and ApiEndpoint remain identical to the ETL side, 
-# except their SQLAlchemy ForeignKeys and Relationships point to `runs.run_id` and `FrontendRun`.
-class FileLocation(Base):
-    __tablename__ = "file_locations"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id", ondelete="CASCADE"))
-    file_type: Mapped[str] = mapped_column(String(50))
-    s3_uri: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime]
-
+# Downstream tables use the core model mixins
+class FileLocation(FileLocationMixin, Base):
     run: Mapped["FrontendRun"] = relationship(
         back_populates="files",
         primaryjoin="foreign(FileLocation.run_id) == FrontendRun.run_id"
     )
 
-# ... (PipelineResult and ApiEndpoint mirror FileLocation by pointing to run_id and FrontendRun)
-
-
-class PipelineResult(Base):
-    __tablename__ = "pipeline_results"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id", ondelete="CASCADE"))
-    clinical_report_json_uri: Mapped[Optional[str]] = mapped_column(Text)
-    pipeline_version: Mapped[Optional[str]] = mapped_column(String(50))
-    metrics: Mapped[dict] = mapped_column(JSONB, default={})
-    run_date: Mapped[datetime]
-
+class PipelineResult(PipelineResultMixin, Base):
     run: Mapped["FrontendRun"] = relationship(
         back_populates="results",
         primaryjoin="foreign(PipelineResult.run_id) == FrontendRun.run_id"
     )
 
-
-class ApiEndpoint(Base):
-    __tablename__ = "api_endpoints"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id", ondelete="CASCADE"))
-    service_name: Mapped[str] = mapped_column(String(100))
-    endpoint_url: Mapped[str] = mapped_column(Text)
-    method: Mapped[str] = mapped_column(String(10), default="GET")
-    created_at: Mapped[datetime]
-
+class ApiEndpoint(ApiEndpointMixin, Base):
     run: Mapped["FrontendRun"] = relationship(
         back_populates="endpoints",
         primaryjoin="foreign(ApiEndpoint.run_id) == FrontendRun.run_id"

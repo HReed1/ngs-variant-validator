@@ -9,7 +9,7 @@ if "ENCRYPTION_KEY" not in os.environ:
     print(f"Set temporary ENCRYPTION_KEY: {os.environ['ENCRYPTION_KEY']}")
 
 # Import your database session, models, and encryption manager
-from etl.database import SessionLocal
+from core.database import SessionLocal
 from etl.etl_models import Patient, Sample, Run, FileLocation
 from etl.security import crypto_manager
 

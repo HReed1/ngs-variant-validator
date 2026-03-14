@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
-// Add the 'type' keyword here
 import type { Sample } from '../types/api';
 
 interface FetchSamplesParams {
