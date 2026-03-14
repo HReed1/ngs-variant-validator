@@ -1,130 +1,65 @@
-# ngs-variant-validator 🧬
+# NGS Variant Validator 🧬
 
 [![CI/CD Pipeline](https://github.com/HReed1/ngs-variant-validator/actions/workflows/ci_pipeline.yaml/badge.svg)](#)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](#)
 [![Nextflow](https://img.shields.io/badge/nextflow-DSL2-orange)](#)
 
 ## Overview
-`ngs-variant-validator` is an automated, CI/CD-driven testing framework and execution environment for a clinical-grade Oxford Nanopore (ONT) Whole-Genome Sequencing (WGS) pipeline. 
+`ngs-variant-validator` is an automated, CI/CD-driven testing framework and execution environment for scalable sloud-native bioinformatics pipelines. 
 
-Designed with stringent Software Development Life Cycle (SDLC) best practices, this repository demonstrates how to bridge the gap between biological research and enterprise software engineering. It features a containerized Nextflow architecture, strictly normalized database I/O via PostgreSQL, a secure REST API, and a dynamic GitHub webhook microservice that maintains a Single Source of Truth (SSOT) between regulatory Google Docs and GitHub Projects Kanban boards.
 
-## 🏗️ System Architecture & Repository Structure
+## 🏗️ System Architecture
 
-This codebase is strictly modular, separating core bioinformatics logic from cloud infrastructure, data delivery, and project management.
+* **Orchestration:** Nextflow (DSL2) executing containerized processes.
+* **Compute Engine:** Local Docker daemon (Dev) / AWS Batch via EC2 Spot Instances (Prod).
+* **Storage:** PostgreSQL (Metadata & State) / Amazon S3 (Intermediate workflow files).
+* **Backend:** FastAPI (Python) serving a strict, read-only view of sanitized run data.
+* **Frontend:** React + Vite + TypeScript, utilizing React Query for polling and Apache ECharts for rendering genomic coverage and quality profiles.
 
-```text
-ngs-variant-validator/
-├── alembic/                    # Database migration scripts enforcing schema state
-├── api/                        # FastAPI backend serving pipeline results (PHI physically blocked)
-├── core/                       # Shared zero-trust database connection and model mixins
-├── db-init/                    # PostgreSQL initial schema, RBAC security roles, and triggers
-├── etl/                        # Data ingestion, DB seeding, and PHI encryption logic
-├── pipeline-pm-webhook/        # SSOT Webhook: Syncs Google Doc requirements to GitHub Kanban
-├── src/ont-clinical-pipeline/  # Core Nextflow DAG and Python I/O middleware
-├── tests/                      # Automated test suite (pytest) across API, ETL, and Webhooks
-├── utils/                      # Developer QoL scripts (start_dev.sh, stop_dev.sh)
-└── .github/workflows/          # CI/CD pipelines enforcing test coverage via Branch Protection
-```
+## 🚀 Quick Start (Local Development)
 
-### The CI/CD & SSOT Workflow
-- **Branch Protection**: The main branch is locked. All Pull Requests automatically spin up a PostgreSQL service container, apply Alembic schema migrations, and run the pytest suite. Code cannot be merged if tests fail or coverage drops.
-- **Regulatory Sync**: When an issue is labeled with a requirement tag (e.g., [REQ-SEC-01]), the Webhook service parses the AST of a master Google Doc, extracts the compliance text, and executes a GraphQL mutation to sync it to the GitHub Kanban board.
+### Prerequisites
+* Docker & Colima (or Docker Desktop)
+* Nextflow (`>=23.04.0`)
+* Python 3.11+
+* Node.js & npm
 
-## 🔒 Security & Database Architecture
-
-The system uses a highly normalized PostgreSQL backend structured around a strict biological hierarchy (Patient -> Sample -> Run), with uncompromising role-based access control (RBAC):
-- **ETL Worker Role (`etl_worker`)**:Has full data-manipulation access to the base patients, samples, and runs tables. Application-level symmetric cryptography (Fernet) encrypts Protected Health Information (PHI) before it is inserted. Used by Nextflow to log results.
-- **Frontend API Role (`frontend_api`)**: Can only access the Zero-Trust Views (frontend_patients, frontend_samples, frontend_runs). The views project an MD5 surrogate hash and explicitly exclude the raw patient_id ciphertext, ensuring the FastAPI backend physically cannot query or leak PHI, even in the event of an application vulnerability.
-
-```mermaid
-graph TD
-    %% Define Nodes
-    Seq[ONT Sequencer]
-    S3[S3 / Blob Storage]
-    
-    subgraph Data Ingestion
-        ETL_In[ETL Job: process_run.py]
-        Crypto[Application-Level Encryption]
-    end
-    
-    DB[(PostgreSQL Database)]
-    
-    subgraph Bioinformatics Pipeline
-        NF_Start[db_fetch_inputs.py]
-        NF_Exec[Nextflow Process Execution]
-        NF_End[db_log_outputs.py]
-    end
-    
-    subgraph Frontend Services
-        API[FastAPI Application]
-        UI[End User / Web UI]
-    end
-
-    %% Define Flow
-    Seq -- FASTQ/BAM --> S3
-    S3 -.-> |File URIs| ETL_In
-    ETL_In <--> |Encrypts patient_id| Crypto
-    ETL_In -- Inserts hierarchy (Patient/Sample/Run) --> DB
-    
-    DB -.-> |Queries run_id| NF_Start
-    NF_Start -- JSON Inputs --> NF_Exec
-    NF_Exec -- BAM/VCF/JSON --> NF_End
-    NF_End -- Writes results & metrics to Run --> DB
-    
-    DB -.-> |Queries safe views| API
-    API -- Serves Nested JSON --> UI
-```
-
-## Quick Start
-We use automated bootstrapping scripts to ensure local development is frictionless.
-
-### 1. Start the Environment
-This script verifies Docker, spins up the PostgreSQL database, waits for it to become healthy, and provisions an optional ngrok tunnel for webhook testing.
+### 1. Boot the Infrastructure
+Start the PostgreSQL database and the FastAPI backend:
 
 ```bash
-chmod +x utils/start_dev.sh
 ./utils/start_dev.sh
-```
-
-### Apply Database Migrations
-
-```bash
 alembic upgrade head
-```
-
-### 3. Run the Test Suite
-Ensure your virtual environment is active and dependencies are installed (pip install -r requirements.txt).
-
-```bash
-pytest tests/ -v
-```
-
-### 4. Seed the Database & Run the API locally:
-Generate synthetic patient, sample, and run data, then start the web server to explore the Swagger documentation.
-```bash
 python -m etl.jobs.seed_database
-uvicorn api.main:app --reload
 ```
-
-Navigate to http://localhost:8000/docs in your browser.
-
-### 4. Teardown
-Safely spin down the containers. Use the --clean flag if you want to wipe the database volume and start fresh tomorrow.
+2. Start the UI
+In a new terminal, boot the React frontend:
 
 ```bash
-chmod +x utils/stop_dev.sh
-./utils/stop_dev.sh --clean
+cd ngs-variant-ui
+npm install
+npm run dev
 ```
+3. Run the Local Micro-Dataset
+Execute the Nextflow pipeline locally using the built-in Docker profile:
 
-## Front-end API
-A lightweight, secure FastAPI microservice designed to serve clinical pipeline results to frontend dashboards.
+```bash
+nextflow run src/ont-clinical-pipeline/main.nf --run RUN-VIRAL-TEST
+```
+## ☁️ AWS Batch Execution
+To run heavy datasets (e.g., HG002) in the cloud:
 
-### Key Features
-* **Zero-Trust Security:** Operates under a restricted PostgreSQL role that is physically barred from accessing base tables, utilizing MD5 hashing to safely expose relational identifiers.
-* **Hierarchial Serialization:** Automatically constructs and serves deeply nested JSON relationships (e.g., fetching a Sample eagerly loads all associated Runs and file pointers in a single query via .selectinload()).
-* **Scalable Pagination:** Implements strict limits and offset logic, sorting deterministically by timestamp to ensure stable UI rendering.
-* **High-Speed Metadata Search:** Utilizes PostgreSQL GIN (Generalized Inverted Index) indices to perform lightning-fast queries across schema-less JSONB metadata columns (like assay_type or sequencer hardware) without requiring complex JOINs.
+Ensure your AWS CLI is authenticated and your IAM user has AmazonS3FullAccess and the custom NextflowBatchOrchestrator inline policy.
 
-## Contact
-Harrison H. Vaughn Reed | [EMAIL_ADDRESS]
+Push your custom Docker images to ECR: ./utils/aws_push_images.sh
+
+Execute the pipeline with the AWS Batch profile:
+
+```bash
+nextflow run src/ont-clinical-pipeline/main.nf --run RUN-AWS-HG002 -profile awsbatch
+```
+## ✉️ Contact
+Harrison H. Vaughn Reed Email: [EMAIL_ADDRESS]
+
+
+---
