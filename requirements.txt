@@ -12,6 +12,9 @@ httpx
 fastapi[standard]
 requests
 python-dotenv
+nextflow
+awscli
+aws
 
 # --- Security Patches for Transitive Dependencies ---
 filelock>=3.20.3
