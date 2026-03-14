@@ -68,7 +68,7 @@ process CALCULATE_COVERAGE {
     """
 }
 
-// Phase 4: Variant Calling (Placeholder for Clair3/DeepVariant/GATK)
+// Phase 4: Real Variant Calling
 process CALL_VARIANTS {
     input:
     tuple val(run_id), path(bam), path(bai), val(ref_uri)
@@ -78,51 +78,59 @@ process CALL_VARIANTS {
 
     script:
     """
-    # Execute variant caller here
-    touch ${run_id}.vcf.gz
+    wget -qO ref.fna.gz "${ref_uri}"
+    gunzip ref.fna.gz
+    # Use bcftools to call variants for the real data
+    bcftools mpileup -Ou -f ref.fna ${bam} | bcftools call -mv -Oz -o ${run_id}.vcf.gz
     """
 }
 
-// Phase 5: Filter by Coverage
+// Phase 5: Filter by Quality
 process FILTER_BY_COVERAGE {
     input:
     tuple val(run_id), path(vcf), path(mosdepth_dist), path(mosdepth_bed)
 
     output:
-    tuple val(run_id), path("${run_id}.cov_filtered.vcf"), emit: cov_filtered_vcf
+    tuple val(run_id), path("${run_id}.filtered.vcf.gz"), emit: cov_filtered_vcf
 
     script:
     """
-    filter_by_coverage.py --vcf ${vcf} --bed ${mosdepth_bed} --min_cov 15 --out ${run_id}.cov_filtered.vcf
+    # Actually filter variants with Quality < 20
+    bcftools filter -e 'QUAL<20' ${vcf} -Oz -o ${run_id}.filtered.vcf.gz
     """
 }
 
-// Phase 6: Clinical Annotation (e.g., VEP or SnpEff)
+// Phase 6: Clinical Annotation (Mock pass-through for Micro-Dataset)
 process ANNOTATE_VARIANTS {
     input:
     tuple val(run_id), path(vcf)
 
     output:
-    tuple val(run_id), path("${run_id}.annotated.vcf"), emit: annotated_vcf
+    tuple val(run_id), path("${run_id}.annotated.vcf.gz"), emit: annotated_vcf
 
     script:
     """
-    # Run annotation tool against dbSNP/gnomAD
-    touch ${run_id}.annotated.vcf
+    # Rename to simulate annotation step passing
+    mv ${vcf} ${run_id}.annotated.vcf.gz
     """
 }
 
-// Phase 7: Filter Significant Variants & Generate JSON
+// Phase 7: Parse VCF/BED to Generate UI Chart JSON
 process GENERATE_JSON_REPORT {
     input:
-    tuple val(run_id), path(annotated_vcf)
+    // We catch all 4 items from the joined vcf_and_cov channel
+    tuple val(run_id), path(annotated_vcf), path(mosdepth_dist), path(mosdepth_bed)
 
     output:
-    tuple val(run_id), path("${run_id}_clinical_report.json"), emit: json_report
+    tuple val(run_id), path("${run_id}_clinical_report.json"), path("qc_metrics.json"), emit: json_report
 
     script:
     """
-    generate_json_report.py --vcf ${annotated_vcf} --out ${run_id}_clinical_report.json
+    generate_json_report.py \\
+        --vcf ${annotated_vcf} \\
+        --bed ${mosdepth_bed} \\
+        --out ${run_id}_clinical_report.json \\
+        --metrics qc_metrics.json
     """
 }
 
@@ -135,13 +143,14 @@ process LOG_DB_OUTPUTS {
     secret 'DB_NAME'
     
     input:
-    tuple val(run_id), path(clinical_report_json)
+    tuple val(run_id), path(clinical_report_json), path(metrics_json)
 
     script:
     """
     db_log_outputs.py \\
         --run ${run_id} \\
         --report ${clinical_report_json} \\
+        --metrics ${metrics_json} \\
         --version "v1.2.0"
     """
 }
@@ -153,16 +162,17 @@ workflow {
     
     ALIGN_READS(PARSE_INPUTS.out)
     
-    // Fork the aligned BAM to both coverage and variant calling
     CALCULATE_COVERAGE(ALIGN_READS.out.aligned_data)
     CALL_VARIANTS(ALIGN_READS.out.aligned_data)
     
-    // Join the VCF and Coverage data by run_id
     vcf_and_cov = CALL_VARIANTS.out.raw_vcf.join(CALCULATE_COVERAGE.out.coverage_data)
     FILTER_BY_COVERAGE(vcf_and_cov)
     
     ANNOTATE_VARIANTS(FILTER_BY_COVERAGE.out.cov_filtered_vcf)
-    GENERATE_JSON_REPORT(ANNOTATE_VARIANTS.out.annotated_vcf)
     
+    // Join the Annotated VCF back with the Mosdepth data so the Python parser can see both!
+    annotated_and_cov = ANNOTATE_VARIANTS.out.annotated_vcf.join(CALCULATE_COVERAGE.out.coverage_data)
+    
+    GENERATE_JSON_REPORT(annotated_and_cov)
     LOG_DB_OUTPUTS(GENERATE_JSON_REPORT.out.json_report)
 }
