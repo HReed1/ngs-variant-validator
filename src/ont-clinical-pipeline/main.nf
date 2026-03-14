@@ -17,7 +17,7 @@ process FETCH_DB_INPUTS {
 
     script:
     """
-    db_fetch_inputs.py --run ${run_id} --out inputs.json
+    db_fetch_inputs.py --run ${run_id}
     """
 }
 
@@ -30,18 +30,9 @@ process PARSE_INPUTS {
 
     script:
     """
-    #!/usr/bin/env python3
-    import json
-    import os
-
-    with open('${input_json}', 'r') as f:
-        data = json.load(f)
-
-    # Export variables so Nextflow can capture them via the env() output declaration
-    with open('.command.env', 'w') as env_file:
-        env_file.write(f"RUN_ID={data['run_id']}\\n")
-        env_file.write(f"READS_URI={data['reads']}\\n")
-        env_file.write(f"REF_URI={data['reference']}\\n")
+    export RUN_ID=\$(python3 -c "import sys, json; print(json.load(open('${input_json}'))['run_id'])")
+    export READS_URI=\$(python3 -c "import sys, json; print(json.load(open('${input_json}'))['reads'])")
+    export REF_URI=\$(python3 -c "import sys, json; print(json.load(open('${input_json}'))['reference'])")
     """
 }
 
@@ -54,8 +45,10 @@ process ALIGN_READS {
 
     script:
     """
-    # Minimap2 natively supports streaming directly from S3 URIs in many configurations
-    minimap2 -ax map-ont ${ref_uri} ${reads_uri} | \\
+    wget -qO ref.fna.gz "${ref_uri}"
+    wget -qO reads.fastq.gz "${reads_uri}"
+
+    minimap2 -ax map-ont ref.fna.gz reads.fastq.gz | \\
     samtools sort -o ${run_id}.bam -
     samtools index ${run_id}.bam
     """
@@ -93,7 +86,7 @@ process CALL_VARIANTS {
 // Phase 5: Filter by Coverage
 process FILTER_BY_COVERAGE {
     input:
-    tuple val(run_id), path(vcf), path(mosdepth_bed)
+    tuple val(run_id), path(vcf), path(mosdepth_dist), path(mosdepth_bed)
 
     output:
     tuple val(run_id), path("${run_id}.cov_filtered.vcf"), emit: cov_filtered_vcf
