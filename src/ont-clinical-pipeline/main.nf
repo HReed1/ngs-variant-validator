@@ -136,23 +136,20 @@ process GENERATE_JSON_REPORT {
 // Phase 8: Update Database
 process LOG_DB_OUTPUTS {
     secret 'DB_HOST'
+    secret 'DB_PORT'
     secret 'DB_USER'
     secret 'DB_PASSWORD'
     secret 'DB_NAME'
     
     input:
-    val run_id
-    path clinical_report_json
-    path multiqc_metrics_json
+    tuple val(run_id), path(clinical_report_json)
 
     script:
-    // Extract the s3 path if staging files remotely, or pass the local/URI string directly
     """
     db_log_outputs.py \\
         --run ${run_id} \\
         --report ${clinical_report_json} \\
-        --version "v1.2.0" \\
-        --metrics ${multiqc_metrics_json}
+        --version "v1.2.0"
     """
 }
 
