@@ -17,9 +17,10 @@ This codebase is strictly modular, separating core bioinformatics logic from clo
 ngs-variant-validator/
 ├── alembic/                    # Database migration scripts enforcing schema state
 ├── api/                        # FastAPI backend serving pipeline results (PHI physically blocked)
+├── core/                       # Shared zero-trust database connection and model mixins
 ├── db-init/                    # PostgreSQL initial schema, RBAC security roles, and triggers
 ├── etl/                        # Data ingestion, DB seeding, and PHI encryption logic
-├── pipeline-pm-webhook/         # SSOT Webhook: Syncs Google Doc requirements to GitHub Kanban
+├── pipeline-pm-webhook/        # SSOT Webhook: Syncs Google Doc requirements to GitHub Kanban
 ├── src/ont-clinical-pipeline/  # Core Nextflow DAG and Python I/O middleware
 ├── tests/                      # Automated test suite (pytest) across API, ETL, and Webhooks
 ├── utils/                      # Developer QoL scripts (start_dev.sh, stop_dev.sh)
